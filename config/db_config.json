@@ -1,0 +1,6 @@
+{
+  "host":"localhost",
+  "user":"server",
+  "password":"admin123456",
+  "database":"earth_fighter"
+}

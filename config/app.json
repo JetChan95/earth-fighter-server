@@ -1,0 +1,12 @@
+{
+    "task_status": {
+        "pending": 0,
+        "in_progress": 1,
+        "completed": 2,
+        "expired": 3,
+        "overdue_completed": 4,
+        "failed": 5,
+        "to_be_confirmed": 6,
+        "abandoned": 7
+    }
+}
