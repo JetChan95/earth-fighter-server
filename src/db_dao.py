@@ -1,9 +1,8 @@
 import mysql.connector
 import json
-import logging
+from logger import LoggerFactory
 
-# 配置日志记录
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = LoggerFactory.getLogger()
 
 class EarthFighterDAO:
     def __init__(self):
@@ -18,7 +17,7 @@ class EarthFighterDAO:
             )
             self.cursor = self.db.cursor()
         except mysql.connector.Error as err:
-            logging.error(f"Error connecting to MySQL database: {err}")
+            logger.error(f"Error connecting to MySQL database: {err}")
             raise
 
     def check_user_exists(self, u_name):
@@ -32,7 +31,6 @@ class EarthFighterDAO:
         return existing_user is not None
 
     def add_user(self, u_name, password):
-        # 直接插入新用户，不检查用户名是否已存在
         sql_insert = "INSERT INTO users (u_name, password, register_time) VALUES (%s, %s, NOW())"
         val_insert = (u_name, password)
         try:
@@ -40,7 +38,7 @@ class EarthFighterDAO:
             self.db.commit()
             return self.cursor.lastrowid
         except mysql.connector.Error as err:
-            logging.error(f"Error adding user: {err}")
+            logger.error(f"Error adding user: {err}")
             self.db.rollback()
             raise
     def delete_user(self, u_id):
@@ -51,22 +49,75 @@ class EarthFighterDAO:
             self.db.commit()
             return self.cursor.rowcount
         except mysql.connector.Error as err:
-            logging.error(f"Error deleting user: {err}")
+            logger.error(f"Error deleting user: {err}")
             self.db.rollback()
             raise
 
-    def update_user(self, u_id, u_name, password):
-        sql = "UPDATE users SET u_name = %s, password = %s WHERE u_id = %s"
-        val = (u_name, password, u_id)
+    def update_user(self, u_id, u_name):
+        sql = "UPDATE users SET u_name = %s WHERE u_id = %s"
+        val = (u_name, u_id)
         try:
             self.cursor.execute(sql, val)
             self.db.commit()
             return self.cursor.rowcount
         except mysql.connector.Error as err:
-            logging.error(f"Error updating user: {err}")
+            logger.error(f"Error updating user: {err}")
             self.db.rollback()
             raise
 
+    def update_user_password(self, u_id, password):
+        sql = "UPDATE users SET password = %s WHERE u_id = %s"
+        val = (password, u_id)
+        try:
+            self.cursor.execute(sql, val)
+            self.db.commit()
+            return self.cursor.rowcount
+        except mysql.connector.Error as err:
+            logger.error(f"Error updating user password: {err}")
+            self.db.rollback()
+            raise
+
+    def get_role_id_by_name(self, role_name):
+        """
+        根据角色名称获取角色ID
+        """
+        sql = "SELECT role_id FROM roles WHERE role_name = %s"
+        val = (role_name,)
+        try:
+            self.cursor.execute(sql, val)
+            role_info = self.cursor.fetchone()
+            return role_info[0] if role_info else None
+        except mysql.connector.Error as err:
+            logger.error(f"Error getting role ID: {err}")
+            raise
+    def update_user_role(self, u_id, role_id):
+        """
+        更新用户的角色信息
+        """
+        sql = "UPDATE user_role SET role_id = %s WHERE user_id = %s"
+        val = (role_id, u_id)
+        try:
+            self.cursor.execute(sql, val)
+            self.db.commit()
+            return self.cursor.rowcount
+        except mysql.connector.Error as err:
+            logger.error(f"Error updating user role: {err}")
+            self.db.rollback()
+            raise
+    def assign_user_role(self, u_id, role_id):
+        """
+        为用户分配角色
+        """
+        sql = "INSERT INTO user_role (user_id, role_id) VALUES (%s, %s)"
+        val = (u_id, role_id)
+        try:
+            self.cursor.execute(sql, val)
+            self.db.commit()
+            return self.cursor.rowcount
+        except mysql.connector.Error as err:
+            logger.error(f"Error assigning user role: {err}")
+            self.db.rollback()
+            raise
     def user_login(self, u_name, password):
         sql = "SELECT * FROM users WHERE u_name = %s AND password = %s AND is_deleted = FALSE"
         val = (u_name, password)
@@ -75,7 +126,7 @@ class EarthFighterDAO:
             user = self.cursor.fetchone()
             return user
         except mysql.connector.Error as err:
-            logging.error(f"Error during user login: {err}")
+            logger.error(f"Error during user login: {err}")
             raise
     def get_user_role(self, u_id):
         """
@@ -87,15 +138,25 @@ class EarthFighterDAO:
         role_info = self.cursor.fetchone()
         return {'role_id': role_info[0], 'role_name': role_info[1]} if role_info else None
 
-    def add_organization(self, c_name, c_type):
-        sql = "INSERT INTO organizations (c_name, c_type, is_deleted) VALUES (%s, %s, FALSE)"
-        val = (c_name, c_type)
+    def check_organization_exists(self, c_name):
+        """
+        检查组织是否已存在
+        """
+        sql_check = "SELECT c_id FROM organizations WHERE c_name = %s AND is_deleted = FALSE"
+        val_check = (c_name,)
+        self.cursor.execute(sql_check, val_check)
+        existing_org = self.cursor.fetchone()
+        return existing_org is not None
+
+    def add_organization(self, c_name, c_type, creator_id, invite_code):
+        sql = "INSERT INTO organizations (c_name, c_type, creator_id, invite_code, is_deleted) VALUES (%s, %s, %s, %s, FALSE)"
+        val = (c_name, c_type, creator_id, invite_code)
         try:
             self.cursor.execute(sql, val)
             self.db.commit()
             return self.cursor.lastrowid
         except mysql.connector.Error as err:
-            logging.error(f"Error adding organization: {err}")
+            logger.error(f"Error adding organization: {err}")
             self.db.rollback()
             raise
 
@@ -107,22 +168,37 @@ class EarthFighterDAO:
             self.db.commit()
             return self.cursor.rowcount
         except mysql.connector.Error as err:
-            logging.error(f"Error deleting organization: {err}")
+            logger.error(f"Error deleting organization: {err}")
             self.db.rollback()
             raise
     def add_user_to_organization(self, user_id, organization_id):
         """
         将用户添加到组织
         """
-        sql = "INSERT INTO user_organization (user_id, organization_id) VALUES (%s, %s)"
+        sql = "INSERT INTO user_org_relations (u_id, c_id) VALUES (%s, %s)"
         val = (user_id, organization_id)
         try:
             self.cursor.execute(sql, val)
             self.db.commit()
         except mysql.connector.Error as err:
-            logging.error(f"Error adding user to organization: {err}")
+            logger.error(f"Error adding user to organization: {err}")
             self.db.rollback()
             raise
+
+    def remove_user_from_organization(self, user_id, organization_id):
+        """
+        从组织中移除用户
+        """
+        sql = "DELETE FROM user_org_relations WHERE u_id = %s AND c_id = %s"
+        val = (user_id, organization_id)
+        try:
+            self.cursor.execute(sql, val)
+            self.db.commit()
+        except mysql.connector.Error as err:
+            logger.error(f"Error removing user from organization: {err}")
+            self.db.rollback()
+            raise
+        
     def publish_task(self, publisher_id, receiver_id, task_state, time_limit):
         sql = "INSERT INTO tasks (publisher_id, receiver_id, task_state, publish_time, time_limit) VALUES (%s, %s, %s, NOW(), %s)"
         val = (publisher_id, receiver_id, task_state, time_limit)
@@ -131,7 +207,7 @@ class EarthFighterDAO:
             self.db.commit()
             return self.cursor.lastrowid
         except mysql.connector.Error as err:
-            logging.error(f"Error publishing task: {err}")
+            logger.error(f"Error publishing task: {err}")
             self.db.rollback()
             raise
     def get_task_status(self, task_id):
@@ -148,7 +224,7 @@ class EarthFighterDAO:
             else:
                 return None
         except mysql.connector.Error as err:
-            logging.error(f"获取任务状态时发生错误: {err}")
+            logger.error(f"获取任务状态时发生错误: {err}")
             raise
     def update_task_status(self, task_id, task_status):
         """
@@ -161,7 +237,7 @@ class EarthFighterDAO:
             self.db.commit()
             return self.cursor.rowcount
         except mysql.connector.Error as err:
-            logging.error(f"更新任务状态时发生错误: {err}")
+            logger.error(f"更新任务状态时发生错误: {err}")
             self.db.rollback()
             raise
     def update_task_status_and_receiver(self, task_id, task_status, receiver_id):
@@ -175,7 +251,7 @@ class EarthFighterDAO:
             self.db.commit()
             return self.cursor.rowcount
         except mysql.connector.Error as err:
-            logging.error(f"更新任务状态和接收者时发生错误: {err}")
+            logger.error(f"更新任务状态和接收者时发生错误: {err}")
             self.db.rollback()
             raise
     def is_organization_creator(self, organization_id, user_id):
@@ -191,15 +267,41 @@ class EarthFighterDAO:
         """
         检查用户是否为组织成员
         """
-        sql = "SELECT COUNT(*) FROM user_organization WHERE user_id = %s AND organization_id = %s"
+        sql = "SELECT COUNT(*) FROM user_org_relations WHERE u_id = %s AND c_id = %s"
         val = (user_id, organization_id)
         self.cursor.execute(sql, val)
         result = self.cursor.fetchone()
         return result[0] > 0
+    
+    def get_organization(self, c_id):
+        """
+        获取组织信息
+        """
+        try:
+            sql = "SELECT * FROM organizations WHERE c_id = %s"
+            val = (c_id,)
+            self.cursor.execute(sql, val)
+            result = self.cursor.fetchone()
+            if result:
+                return {
+                    "c_id": result[0],
+                    "c_name": result[1],
+                    "c_type": result[2],
+                    "creator_id": result[3],
+                    "invite_code": result[4],
+                    "create_time": result[5],
+                    "is_deleted": result[6]
+                }
+            else:
+                return None
+        except mysql.connector.Error as err:
+            logger.error(f"获取组织信息时发生错误: {err}")
+            raise
+
     def close(self):
         try:
             self.cursor.close()
             self.db.close()
         except mysql.connector.Error as err:
-            logging.error(f"Error closing database connection: {err}")
+            logger.error(f"Error closing database connection: {err}")
             raise

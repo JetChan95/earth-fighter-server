@@ -1,9 +1,10 @@
 import mysql.connector
 import json
-import logging
+import logger
+from config_manager import ConfigManager
+from logger import LoggerFactory
 
-# 配置日志记录
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = LoggerFactory.getLogger()
 
 def initialize_database():
     try:
@@ -27,22 +28,39 @@ def initialize_database():
             sql_commands = sql_script.split(';')
             for command in sql_commands:
                 if command.strip():
-                    cursor.execute(command)
+                    try:
+                        print('sql: ', command)
+                        cursor.execute(command)
+                    except mysql.connector.Error as err:
+                        logger.error(f"执行SQL语句失败: {err}")
+                        raise
+
+        # 根据配置表预设DB信息
+        config_manager = ConfigManager()
+        configs = config_manager.get_config()
+        sql = "INSERT INTO roles (role_name, role_description) VALUES (%s, %s)"
+        for role in configs['user_roles']:
+            val = [role['role_name'], role['role_description']]
+            try:
+                cursor.execute(sql, val)
+            except mysql.connector.Error as err:
+                logger.error(f"插入角色信息失败: {err}")
+                raise
 
         # 提交更改并关闭连接
         db.commit()
         cursor.close()
         db.close()
-        logging.info("数据库初始化成功")
+        logger.info("数据库初始化成功")
     except mysql.connector.Error as err:
-        logging.error(f"数据库初始化失败: {err}")
+        logger.error(f"数据库初始化失败: {err}")
         if db.is_connected():
             db.rollback()
             cursor.close()
             db.close()
         raise
     except Exception as e:
-        logging.error(f"发生未知错误: {e}")
+        logger.error(f"发生未知错误: {e}")
         if db.is_connected():
             db.rollback()
             cursor.close()
