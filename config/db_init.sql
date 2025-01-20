@@ -1,17 +1,4 @@
--- 清空 earth_fighter 数据库中的所有表
-USE earth_fighter;
-
--- 获取数据库中的所有表名
-SET @tables = NULL;
-SELECT GROUP_CONCAT(table_name) INTO @tables
-FROM information_schema.tables
-WHERE table_schema = 'earth_fighter';
-
--- 删除所有表
-SET @drop_tables = CONCAT('DROP TABLE IF EXISTS ', @tables);
-PREPARE stmt FROM @drop_tables;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
+DROP DATABASE earth_fighter;
 
 -- 创建数据库
 CREATE DATABASE IF NOT EXISTS earth_fighter;
@@ -22,7 +9,7 @@ USE earth_fighter;
 -- 用户表
 CREATE TABLE IF NOT EXISTS users (
     u_id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
-    u_name VARCHAR(255) NOT NULL,
+    u_name VARCHAR(255) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
     register_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_deleted BOOLEAN DEFAULT FALSE
@@ -31,10 +18,11 @@ CREATE TABLE IF NOT EXISTS users (
 -- 组织表
 CREATE TABLE IF NOT EXISTS organizations (
     c_id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
-    c_name VARCHAR(255) NOT NULL,
+    c_name VARCHAR(255) NOT NULL UNIQUE,
     c_type VARCHAR(255) NOT NULL,
     creator_id INT UNSIGNED NOT NULL,  -- 新增创建者字段，引用 users 表的 u_id
     invite_code VARCHAR(255) NOT NULL,  -- 新增邀请码字段
+    create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_deleted BOOLEAN DEFAULT FALSE,
     FOREIGN KEY (creator_id) REFERENCES users(u_id)  -- 添加外键约束
 );
@@ -54,7 +42,7 @@ CREATE TABLE IF NOT EXISTS user_org_relations (
 -- 角色表
 CREATE TABLE IF NOT EXISTS roles (
     role_id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
-    role_name VARCHAR(255) NOT NULL,
+    role_name VARCHAR(255) NOT NULL UNIQUE,
     role_description TEXT,
     is_deleted BOOLEAN DEFAULT FALSE
     -- 其他角色相关的字段
@@ -72,7 +60,7 @@ CREATE TABLE IF NOT EXISTS user_role (
 -- 任务表
 CREATE TABLE IF NOT EXISTS tasks (
     task_id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
-    publisher_id INT UNSIGNED,
+    publisher_id INT UNSIGNED NOT NULL,
     receiver_id INT UNSIGNED,
     task_state TINYINT UNSIGNED DEFAULT 0,
     publish_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
