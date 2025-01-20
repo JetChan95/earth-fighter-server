@@ -8,5 +8,33 @@
         "failed": 5,
         "to_be_confirmed": 6,
         "abandoned": 7
-    }
+    },
+    "user_roles":[
+        {
+            "role_name": "admin",
+            "role_description": "管理员用户"
+        },
+        {
+            "role_name": "user",
+            "role_description": "普通用户"
+        }
+    ],
+    "organization_types": [
+        {
+            "type_name": "family",
+            "type_description": "家庭"
+        },
+        {
+            "type_name": "school",
+            "type_description": "学校"
+        },
+        {
+            "type_name": "worldwide",
+            "type_description": "全球"
+        },
+        {
+            "type_name": "contry",
+            "type_description": "国家"
+        }
+    ]
 }
