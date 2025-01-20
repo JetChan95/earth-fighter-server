@@ -6,6 +6,7 @@ import os
 
 # Add the parent directory of 'src' to the Python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..\src')))
 
 # Now you can import from 'src'
 from src.db_dao import EarthFighterDAO
@@ -32,36 +33,86 @@ class TestEarthFighterDAO(unittest.TestCase):
     def setUp(self):
         # 在每个测试方法运行前，清空相关表中的数据
         self.cursor.execute("DELETE FROM user_org_relations")
+        self.cursor.execute("DELETE FROM user_role")
         self.cursor.execute("DELETE FROM tasks")
-        self.cursor.execute("DELETE FROM users")
         self.cursor.execute("DELETE FROM organizations")
+        self.cursor.execute("DELETE FROM users")
+        # self.cursor.execute("DELETE FROM roles")
         self.db.commit()
 
-    def test_add_user(self):
+    def test_add_user_succ(self):
         u_id = self.dao.add_user("test_user", "test_password")
+        self.assertEqual(self.dao.check_user_exists('test_user'), True)
         self.cursor.execute("SELECT * FROM users WHERE u_id = %s", (u_id,))
         user = self.cursor.fetchone()
         self.assertIsNotNone(user)
         self.assertEqual(user[1], "test_user")
         self.assertEqual(user[2], "test_password")
 
-    def test_delete_user(self):
+    def test_add_user_fail(self):
+        self.dao.add_user("test_user", "test_password")
+        with self.assertRaises(mysql.connector.Error):
+            self.dao.add_user("test_user", "test_password")
+
+    def test_delete_user_succ(self):
         u_id = self.dao.add_user("test_user", "test_password")
+        self.assertEqual(self.dao.check_user_exists('test_user'), True)
         rows_affected = self.dao.delete_user(u_id)
         self.assertEqual(rows_affected, 1)
         self.cursor.execute("SELECT is_deleted FROM users WHERE u_id = %s", (u_id,))
         is_deleted = self.cursor.fetchone()[0]
         self.assertEqual(is_deleted, 1)
 
+    def test_delete_user_no_data(self):
+        rows_affected = self.dao.delete_user(1)
+        self.assertEqual(rows_affected, 0)
+
+    def test_check_user_exists(self):
+        self.dao.add_user("test_user", "test_password")
+        self.assertEqual(self.dao.check_user_exists('test_user'), True)
+        self.assertEqual(self.dao.check_user_exists('nonexistent_user'), False)
+    
+    def test_get_role_id_by_name(self):
+        role_id = self.dao.get_role_id_by_name("admin")
+        self.assertIsNotNone(role_id)
+
+    def test_update_user_role(self):
+        u_id = self.dao.add_user("test_user", "test_password")
+        role_id = self.dao.get_role_id_by_name("admin")
+        rows_affected = self.dao.assign_user_role(u_id, role_id)
+        self.assertEqual(rows_affected, 1)
+        self.assertEqual(self.dao.get_user_role(u_id)['role_id'], role_id)
+
+        role_id = self.dao.get_role_id_by_name("user")
+        rows_affected = self.dao.update_user_role(u_id, role_id)
+        self.assertEqual(rows_affected, 1)
+        self.assertEqual(self.dao.get_user_role(u_id)['role_id'], role_id)
+
+    def test_get_user_role(self):
+        u_id = self.dao.add_user("test_user", "test_password")
+        role_id = self.dao.get_role_id_by_name("admin")
+        self.dao.assign_user_role(u_id, role_id)
+        role_info = self.dao.get_user_role(u_id)
+        self.assertIsNotNone(role_info)
+        self.assertEqual(role_info['role_id'], role_id)
+        self.assertEqual(role_info['role_name'], "admin")
 
     def test_update_user(self):
         u_id = self.dao.add_user("test_user", "test_password")
-        rows_affected = self.dao.update_user(u_id, "updated_user", "updated_password")
+        rows_affected = self.dao.update_user(u_id, "updated_user")
         self.assertEqual(rows_affected, 1)
         self.cursor.execute("SELECT * FROM users WHERE u_id = %s", (u_id,))
         user = self.cursor.fetchone()
         self.assertIsNotNone(user)
         self.assertEqual(user[1], "updated_user")
+
+    def test_update_user_password(self):
+        u_id = self.dao.add_user("test_user", "test_password")
+        rows_affected = self.dao.update_user_password(u_id, "updated_password")
+        self.assertEqual(rows_affected, 1)
+        self.cursor.execute("SELECT * FROM users WHERE u_id = %s", (u_id,))
+        user = self.cursor.fetchone()
+        self.assertIsNotNone(user)
         self.assertEqual(user[2], "updated_password")
 
     def test_user_login(self):
@@ -72,7 +123,8 @@ class TestEarthFighterDAO(unittest.TestCase):
         self.assertEqual(user[2], "test_password")
 
     def test_add_organization(self):
-        c_id = self.dao.add_organization("test_org", "test_type")
+        u_id = self.dao.add_user("test_user", "test_password")
+        c_id = self.dao.add_organization("test_org", "test_type", u_id, "test_invite_code")
         self.cursor.execute("SELECT * FROM organizations WHERE c_id = %s", (c_id,))
         org = self.cursor.fetchone()
         self.assertIsNotNone(org)
@@ -80,7 +132,8 @@ class TestEarthFighterDAO(unittest.TestCase):
         self.assertEqual(org[2], "test_type")
 
     def test_delete_organization(self):
-        c_id = self.dao.add_organization("test_org", "test_type")
+        u_id = self.dao.add_user("test_user", "test_password")
+        c_id = self.dao.add_organization("test_org", "test_type", u_id, "test_invite_code")
         rows_affected = self.dao.delete_organization(c_id)
         self.assertEqual(rows_affected, 1)
         self.cursor.execute("SELECT is_deleted FROM organizations WHERE c_id = %s", (c_id,))
@@ -90,13 +143,12 @@ class TestEarthFighterDAO(unittest.TestCase):
 
     def test_publish_task(self):
         publisher_id = self.dao.add_user("publisher", "publisher_password")
-        receiver_id = self.dao.add_user("receiver", "receiver_password")
-        task_id = self.dao.publish_task(publisher_id, receiver_id, 0, 3600)
+        task_id = self.dao.publish_task(publisher_id, None, 0, 3600)
         self.cursor.execute("SELECT * FROM tasks WHERE task_id = %s", (task_id,))
         task = self.cursor.fetchone()
         self.assertIsNotNone(task)
         self.assertEqual(task[1], publisher_id)
-        self.assertEqual(task[2], receiver_id)
+        self.assertEqual(task[2], None)
         self.assertEqual(task[3], 0)
 
     def test_update_task_status(self):
@@ -110,9 +162,76 @@ class TestEarthFighterDAO(unittest.TestCase):
         self.assertIsNotNone(task)
         self.assertEqual(task[3], 1)
 
+    def test_receive_task(self):
+        publisher_id = self.dao.add_user("publisher", "publisher_password")
+        receiver_id = self.dao.add_user("receiver", "receiver_password")
+        task_id = self.dao.publish_task(publisher_id, None, 0, 3600)
+        task_state = 1
+        rows_affected = self.dao.update_task_status_and_receiver(task_id, task_state, receiver_id)
+        self.assertEqual(rows_affected, 1)
+        self.cursor.execute("SELECT * FROM tasks WHERE task_id = %s", (task_id,))
+        task = self.cursor.fetchone()
+        self.assertIsNotNone(task)
+        self.assertEqual(task[3], task_state)
+        self.assertEqual(task[2], receiver_id)
+
+    def test_get_task_status(self):
+        publisher_id = self.dao.add_user("publisher", "publisher_password")
+        receiver_id = self.dao.add_user("receiver", "receiver_password")
+        task_state = 0
+        task_id = self.dao.publish_task(publisher_id, receiver_id, task_state, 3600)
+        self.assertEqual(task_state, self.dao.get_task_status(task_id))
+
+    def test_add_user_to_organization(self):
+        u_id = self.dao.add_user("test_user", "test_password")
+        c_id = self.dao.add_organization("test_org", "test_type", u_id, "test_invite_code")
+        self.dao.add_user_to_organization(u_id, c_id)
+        self.cursor.execute("SELECT * FROM user_org_relations WHERE u_id = %s AND c_id = %s", (u_id, c_id))
+        relation = self.cursor.fetchone()
+        self.assertIsNotNone(relation)
+
+    def test_remove_user_from_organization(self):
+        u_id = self.dao.add_user("test_user", "test_password")
+        c_id = self.dao.add_organization("test_org", "test_type", u_id, "test_invite_code")
+        self.dao.add_user_to_organization(u_id, c_id)
+        self.dao.remove_user_from_organization(u_id, c_id)
+        self.cursor.execute("SELECT * FROM user_org_relations WHERE u_id = %s AND c_id = %s", (u_id, c_id))
+        relation = self.cursor.fetchone()
+        self.assertIsNone(relation)
+        
+    def test_is_organization_creator(self):
+        u_id = self.dao.add_user("test_user", "test_password")
+        c_id = self.dao.add_organization("test_org", "test_type", u_id, "test_invite_code")
+        self.assertTrue(self.dao.is_organization_creator(c_id, u_id))
+
+    def test_is_user_in_organization(self):
+        u_id = self.dao.add_user("test_user", "test_password")
+        c_id = self.dao.add_organization("test_org", "test_type", u_id, "test_invite_code")
+        self.dao.add_user_to_organization(u_id, c_id)
+        self.assertTrue(self.dao.is_user_in_organization(u_id, c_id))
+
+    def test_check_organization_exists(self):
+        c_name = "test_org"
+        self.assertFalse(self.dao.check_organization_exists(c_name))
+
+        creater_id = self.dao.add_user("test_user", "test_password")
+        self.dao.add_organization(c_name, "test_type", creater_id, "test_invite_code")
+        self.assertTrue(self.dao.check_organization_exists(c_name))
+    
+    def test_get_organization(self):
+        c_name = "test_org"
+        creater_id = self.dao.add_user("test_user", "test_password")
+        c_id = self.dao.add_organization(c_name, "test_type", creater_id, "test_invite_code")
+        org = self.dao.get_organization(c_id)
+        print(org)
+        self.assertIsNotNone(org)
+        self.assertEqual(org['c_name'], c_name)
+        self.assertEqual(org['c_type'], "test_type")
+        self.assertEqual(org['creator_id'], creater_id)
+        self.assertEqual(org['invite_code'], "test_invite_code")
+        self.assertEqual(org['is_deleted'], 0)
+
+
 if __name__ == '__main__':
     unittest.main()
-    # suite = unittest.TestSuite()
-    # suite.addTest(TestEarthFighterDAO('test_delete_user'))
-    # unittest.TextTestRunner().run(suite)
    
