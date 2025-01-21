@@ -1,32 +1,57 @@
-from flask import Flask, request, jsonify
+from flask import Flask, jsonify, request
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
+from flask_openapi3 import OpenAPI, Info, Tag
+from pydantic import BaseModel
 from db_dao import EarthFighterDAO
 from logger import LoggerFactory
 from config_manager import ConfigManager
 from ultils import generate_invite_code
+from schemas import *
 
-app = Flask(__name__)
-app.config['JWT_SECRET_KEY'] = 'kjsyhgjsudhkl6z.af-190sjklp30'  # 替换为你自己的密钥
-jwt = JWTManager(app)
 dao = EarthFighterDAO()
 logger = LoggerFactory.getLogger()
 cfg = ConfigManager()
 
+app_name =  "earth_fighter"
+
+# 配置信息
+info = Info(title="Earth fighter Api", version="1.0.0")
+
+# 配置安全方案
+jwt = {
+    "type": "http",
+    "scheme": "bearer",
+    "bearerFormat": "JWT"
+}
+security_schemes = {"jwt": jwt}
+security = [{"jwt": []}]
+
+app = OpenAPI(__name__, info=info, security_schemes=security_schemes)
+jwt = JWTManager(app)
+app.config['JWT_SECRET_KEY'] = 'oa;shdpoignqopweh'
+
+# 定义标签
+auth_tag = Tag(name="用户认证", description="用户认证相关操作")
+user_tag = Tag(name="用户管理", description="用户管理API")
+org_tag = Tag(name="组织管理", description="组织管理API")
 # 用户管理API
-@app.route('/users/create', methods=['POST'])
-def create_user():
+@app.post("/users/create",
+          tags=[user_tag],
+          summary="创建用户",
+          responses={"200": {"description": "用户创建成功"}})
+
+def create_user(body: UserModel):
     """
     创建用户
     """
     try:
-        data = request.get_json()
         # 检查用户名是否已存在
-        if dao.check_user_exists(data['username']):
-            logger.error(f"添加用户时用户名{data['username']}已存在")
+        if dao.check_user_exists(body.username):
+            logger.error(f"添加用户时用户名{body.username}已存在")
             return jsonify({"message": "用户名已存在"}), 400
 
         # 使用参数化查询防止 SQL 注入
-        u_id = dao.add_user(data['username'], data['password'])
+        u_id = dao.add_user(body.username, body.password)
         if u_id is None:
             return jsonify({"message": "添加用户失败"}), 500
         
@@ -42,17 +67,62 @@ def create_user():
         logger.error(f"添加用户时发生错误: {e}")
         return jsonify({"message": "添加用户失败", "error": str(e)}), 500
 
-@app.route('/users/delete/<string:u_id>', methods=['DELETE'])
+@app.post('/users/login',
+          tags=[auth_tag],
+          summary="获取JWT Token",
+          responses={"200": {"description": "获取JWT Token成功"}})
+def user_login(body: UserModel):
+    """
+    用户认证
+    """
+    try:
+        user = dao.user_login(body.username, body.password)
+        if user:
+            # 获取用户的u_id，并赋值给具有明确意义的局部变量
+            user_id = user[0]
+            logger.info(f"User found with user_id: {user_id}")
+            # 获取用户的角色信息
+            role_info = dao.get_user_role(user_id)
+            if role_info:
+                # access_token = create_access_token(identity=user_id, additional_claims={'role_id': role_info['role_id'], 'role_name': role_info['role_name']})
+                token_info = {
+                    "user_id": user_id,
+                    "username": body.username,
+                    "role_id": role_info['role_id'],
+                    "role_name": role_info['role_name']
+                }
+                access_token = create_access_token(identity=f'{user_id}', additional_claims=token_info)
+                data = {
+                    "user_id": user_id,
+                    "username": body.username,
+                    "role_name": role_info['role_name']
+                }
+                return jsonify({"message": "Login successful", "access_token": access_token, "data": data},), 200
+            else:
+                return jsonify({"message": "User role not found"}), 401
+        else:
+            return jsonify({"message": "Invalid credentials"}), 401
+    except Exception as e:
+        logger.error(f"用户登录时发生错误: {e}")
+        return jsonify({"message": "登录失败", "error": str(e)}), 500
+
+@app.delete("/users/delete/<int:u_id>",
+            tags=[user_tag],
+            summary="删除用户",
+            responses={"200": {"description": "用户删除成功"}},
+            security=security)
 @jwt_required()
-def delete_user(u_id):
+def delete_user(path: UserPath):
     """
     删除用户
     """
     try:
+        print(path)
+        u_id = path.u_id
         # 获取当前登录用户的ID
         current_user_id = get_jwt_identity()
         # 只有用户自己可以删除自己
-        if current_user_id != u_id:
+        if current_user_id != f'{u_id}':
             return jsonify({"message": "无权删除该用户"}), 403
 
         # 删除用户
@@ -65,21 +135,25 @@ def delete_user(u_id):
         logger.error(f"删除用户时发生错误: {e}")
         return jsonify({"message": "删除用户失败", "error": str(e)}), 500
 
-@app.route('/users/update/<string:u_id>', methods=['PUT'])
+@app.put('/users/update/<int:u_id>',
+         tags=[user_tag],
+        summary="修改用户名",
+        responses={"200": {"description": "用户名修改成功"}},
+        security=security)
 @jwt_required()
-def update_user(u_id):
+def update_user(path: UserPath, body: UserRenameModel):
     """
     用户信息修改
     """
     try:
+        u_id = path.u_id
         # 获取当前登录用户的ID
         current_user_id = get_jwt_identity()
         # 只有用户自己可以修改自己的信息
-        if current_user_id != u_id:
+        if current_user_id != f'{u_id}':
             return jsonify({"message": "无权修改该用户信息"}), 403
 
-        data = request.get_json()
-        new_username = data.get('username')
+        new_username = body.username
 
         # 在业务逻辑层检查新用户名是否已存在
         if new_username and dao.check_user_exists(new_username):
@@ -93,68 +167,36 @@ def update_user(u_id):
     except Exception as e:
         logger.error(f"更新用户时发生错误: {e}")
         return jsonify({"message": "更新用户失败", "error": str(e)}), 500
-@app.route('/users/login', methods=['POST'])
-def user_login():
-    """
-    用户认证
-    """
-    try:
-        data = request.get_json()
-        user = dao.user_login(data['username'], data['password'])
-        if user:
-            # 获取用户的u_id，并赋值给具有明确意义的局部变量
-            user_id = user[0]
-            logger.info(f"User found with user_id: {user_id}")
-            # 获取用户的角色信息
-            role_info = dao.get_user_role(user_id)
-            if role_info:
-                # access_token = create_access_token(identity=user_id, additional_claims={'role_id': role_info['role_id'], 'role_name': role_info['role_name']})
-                token_info = {
-                    "user_id": user_id,
-                    "username": data['username'],
-                    "role_id": role_info['role_id'],
-                    "role_name": role_info['role_name']
-                }
-                access_token = create_access_token(identity=f'{user_id}', additional_claims=token_info)
-                data = {
-                    "user_id": user_id,
-                    "username": data['username'],
-                    "role_name": role_info['role_name']
-                }
-                return jsonify({"message": "Login successful", "access_token": access_token, "data": data},), 200
-            else:
-                return jsonify({"message": "User role not found"}), 401
-        else:
-            return jsonify({"message": "Invalid credentials"}), 401
-    except Exception as e:
-        logger.error(f"用户登录时发生错误: {e}")
-        return jsonify({"message": "登录失败", "error": str(e)}), 500
+
 
 # 组织管理API
-@app.route('/organizations/create', methods=['POST'])
+@app.post('/organizations/create',
+         tags=[org_tag],
+        summary="创建组织",
+        responses={"201": {"description": "组织创建成功"}},
+        security=security)
 @jwt_required()
-def create_organization():
+def create_organization(body: OrganizationModel):
     """
     增加组织
     """
     try:
-        data = request.get_json()
         # 获取当前登录用户的ID，即组织的创建者ID
         creator_id = get_jwt_identity()
 
         # 检查组织名是否已存在
-        if dao.check_organization_exists(data['c_name']):
+        if dao.check_organization_exists(body.c_name):
             return jsonify({"message": "组织名已存在"}), 400
 
         # 生成随机邀请码
         invite_code = generate_invite_code()
 
         # 校验类型是否有效
-        if not cfg.is_org_type_valid(data['c_type']):
+        if not cfg.is_org_type_valid(body.c_type):
             return jsonify({"message": "无效的组织类型"}), 400
 
         # 使用参数化查询防止 SQL 注入
-        c_id = dao.add_organization(data['c_name'], data['c_type'], creator_id, invite_code)
+        c_id = dao.add_organization(body.c_name, body.c_type, creator_id, invite_code)
 
         # 自动将创建者加入组织
         dao.add_user_to_organization(creator_id, c_id)
@@ -164,13 +206,18 @@ def create_organization():
         logger.error(f"添加组织时发生错误: {e}")
         return jsonify({"message": "添加组织失败", "error": str(e)}), 500
 
-@app.route('/organizations/delete/<string:c_id>', methods=['DELETE'])
+@app.delete('/organizations/delete/<string:c_id>',
+            tags=[org_tag],
+            summary="删除组织",
+            responses={"200": {"description": "组织删除成功"}},
+            security=security)
 @jwt_required()
-def delete_organization(c_id):
+def delete_organization(path: OrgPath):
     """
     删除组织
     """
     try:
+        c_id = path.c_id
         # 获取当前登录用户的ID
         current_user_id = get_jwt_identity()
 
@@ -187,17 +234,20 @@ def delete_organization(c_id):
         logger.error(f"删除组织时发生错误: {e}")
         return jsonify({"message": "删除组织失败", "error": str(e)}), 500
 
-@app.route('/organizations/join', methods=['POST'])
+@app.post('/organizations/join',
+        tags=[org_tag],
+        summary="加入组织",
+        responses={"200": {"description": "组织加入成功"}},
+        security=security)
 @jwt_required()
-def join_organization():
+def join_organization(body: OrganizationModel):
     """
     加入组织
     """
     try:
         user_id = get_jwt_identity()
-        data = request.get_json()
-        org_id = data.get('org_id')
-        invite_code = data.get('invite_code')
+        org_id = body.c_id
+        invite_code = body.invite_code
 
         if not org_id or not invite_code:
             return jsonify({"message": "组织ID和邀请码不能为空"}), 400
@@ -222,15 +272,19 @@ def join_organization():
         logger.error(f"user:{user_id}加入组织{org_id}时发生错误: {e}")
         return jsonify({"message": "加入组织失败", "error": str(e)}), 500
 
-@app.route('/organizations/leave/<string:org_id>', methods=['delete'])
+@app.delete('/organizations/leave/<int:c_id>',
+            tags=[org_tag],
+            summary="离开组织",
+            responses={"204": {"description": "组织离开成功"}},
+            security=security)
 @jwt_required()
-def leave_organization(org_id):
+def leave_organization(path: OrgPath):
     """
     离开组织
     """
     try:
         user_id = get_jwt_identity()
-
+        org_id = path.c_id
         if not org_id:
             return jsonify({"message": "组织ID不能为空"}), 400
 
@@ -245,7 +299,7 @@ def leave_organization(org_id):
 
         # 离开组织
         dao.remove_user_from_organization(user_id, org_id)
-        return jsonify({"message": "成功离开组织", "organization": org_info}), 200
+        return jsonify({"message": "成功离开组织", "organization": org_info}), 204
 
     except Exception as e:
         logger.error(f"user:{user_id}离开组织{org_id}时发生错误: {e}")

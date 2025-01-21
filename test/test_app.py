@@ -80,19 +80,19 @@ class TestApp(unittest.TestCase):
             # 登录
             response = requests.post(f'{self.base_url}/users/login', json=user_data)
             self.assertEqual(response.status_code, 200)
-            delete_id = response.json().get('data')['user_id']
+            update_id = response.json().get('data')['user_id']
             headers = {
                 "Authorization": f"Bearer {response.json()['access_token']}"
             }
 
             # 更新别人的账号
-            delete_id = delete_id + 1
-            response = requests.put(f'{self.base_url}/users/update/{delete_id}', json=update_data, headers=headers)
+            update_id = update_id + 1
+            response = requests.put(f'{self.base_url}/users/update/{update_id}', json=update_data, headers=headers)
             self.assertEqual(response.status_code, 403)
 
             # 更新自己账号
-            delete_id = delete_id - 1
-            response = requests.put(f'{self.base_url}/users/update/{delete_id}', json=update_data, headers=headers)
+            update_id = update_id - 1
+            response = requests.put(f'{self.base_url}/users/update/{update_id}', json=update_data, headers=headers)
             self.assertEqual(response.status_code, 200)
 
 
@@ -196,10 +196,13 @@ class TestApp(unittest.TestCase):
 
             # 无登录加入
             join_info = {
-                'org_id': org_id, 
+                'c_id': org_id,
+                'c_name': '',
+                'c_type': '',
                 'invite_code': invite_code
             }
             response = requests.post(f'{self.base_url}/organizations/join', json=join_info)
+            print(response)
             self.assertEqual(response.status_code, 401)
 
             # 加入组织
@@ -209,36 +212,27 @@ class TestApp(unittest.TestCase):
                 "Authorization": f"Bearer {response.json()['access_token']}"
             }
             # 无组织ID加入
-            join_info = {
-                'invite_code': invite_code
-            }
+            join_info['c_id'] = None
             response = requests.post(f'{self.base_url}/organizations/join', json=join_info, headers=headers)
-            self.assertEqual(response.status_code, 400)
+            self.assertEqual(response.status_code, 422)
             # 无邀请码加入
-            join_info = {
-                'org_id': org_id
-            }
+            join_info['c_id'] = org_id
+            join_info['invite_code'] = ''
             response = requests.post(f'{self.base_url}/organizations/join', json=join_info, headers=headers)
             self.assertEqual(response.status_code, 400)
             # 加入不存在的组织
-            join_info = {
-                'org_id': -1,
-                'invite_code': invite_code
-            }
+            join_info['c_id'] = -1
+            join_info['invite_code'] = invite_code
             response = requests.post(f'{self.base_url}/organizations/join', json=join_info, headers=headers)
             self.assertEqual(response.status_code, 404)
             # 加入错误的邀请码
-            join_info = {
-                'org_id': org_id,
-                'invite_code': '000000'
-            }
+            join_info['c_id'] = org_id
+            join_info['invite_code'] = '123456'
             response = requests.post(f'{self.base_url}/organizations/join', json=join_info, headers=headers)
             self.assertEqual(response.status_code, 403)
             # 加入组织
-            join_info = {
-                'org_id': org_id,
-                'invite_code': invite_code
-            }
+            join_info['c_id'] = org_id
+            join_info['invite_code'] = invite_code
             response = requests.post(f'{self.base_url}/organizations/join', json=join_info, headers=headers)
             self.assertEqual(response.status_code, 200)
 
@@ -261,7 +255,9 @@ class TestApp(unittest.TestCase):
             org_id = response.json()['c_id']
             invite_code = response.json()['invite_code']
             join_info = {
-                'org_id': org_id, 
+                'c_id': org_id,
+                'c_name': '',
+                'c_type': '',
                 'invite_code': invite_code
             }
             # 加入组织
@@ -279,7 +275,7 @@ class TestApp(unittest.TestCase):
 
             # 退出组织成功
             response = requests.delete(f'{self.base_url}/organizations/leave/{org_id}', headers=headers)
-            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.status_code, 204)
 
 if __name__ == '__main__':
     unittest.main()

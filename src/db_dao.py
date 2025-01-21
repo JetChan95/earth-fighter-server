@@ -282,6 +282,7 @@ class EarthFighterDAO:
             val = (c_id,)
             self.cursor.execute(sql, val)
             result = self.cursor.fetchone()
+            logger.debug(f"{__name__}查询结果: {result}")
             if result:
                 return {
                     "c_id": result[0],
