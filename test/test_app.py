@@ -1,19 +1,15 @@
 import subprocess
 import time
 import unittest
-import mysql.connector
-import json
 import sys
 import os
 import requests
-from unittest.mock import patch
 
 # Add the parent directory of 'src' to the Python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..\src')))
 
 # Now you can import from 'src'
-import app
 from db_init import initialize_database
 from ultils import *
 
@@ -21,17 +17,17 @@ class TestApp(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # 初始化数据库
-        # initialize_database()
+        initialize_database()
         # 启动Flask应用
-        # cls.process = subprocess.Popen(['python', 'src/app.py'])
-        # time.sleep(1)  # 等待应用启动
+        cls.process = subprocess.Popen(['python', 'src/app.py'])
+        time.sleep(1)  # 等待应用启动
         cls.base_url = "http://127.0.0.1:5000"
 
     @classmethod
     def tearDownClass(cls):
        # 关闭Flask应用
-        # cls.process.terminate()
-        # cls.process.wait()
+        cls.process.terminate()
+        cls.process.wait()
         pass
         
     def setUp(self):
