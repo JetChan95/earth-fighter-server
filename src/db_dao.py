@@ -281,7 +281,7 @@ class EarthFighterDAO:
         获取组织信息
         """
         try:
-            sql = "SELECT * FROM organizations WHERE c_id = %s"
+            sql = "SELECT * FROM organizations WHERE c_id = %s and is_deleted = 0"
             val = (c_id,)
             self.cursor.execute(sql, val)
             result = self.cursor.fetchone()
@@ -293,9 +293,7 @@ class EarthFighterDAO:
                     "c_type": result[2],
                     "creator_id": result[3],
                     "invite_code": result[4],
-                    "create_time": result[5],
-                    "is_deleted": result[6]
-                }
+                    "create_time": result[5]                }
             else:
                 return None
         except mysql.connector.Error as err:
@@ -348,6 +346,82 @@ class EarthFighterDAO:
             logger.error(f"获取任务信息时发生错误: {err}")
             raise
 
+    def delete_task(self, task_id):
+        """
+        删除任务
+        """
+        try:
+            sql = "DELETE FROM tasks WHERE task_id = %s"
+            val = (task_id,)
+            self.cursor.execute(sql, val)
+            self.db.commit()
+            return self.cursor.rowcount
+        except mysql.connector.Error as err:
+            logger.error(f"Error deleting task: {err}")
+            self.db.rollback()
+            raise
+
+    def get_user_base_info(self, user_id):
+        """
+        获取用户基本信息
+        """
+        try:
+            sql = "SELECT u_id, u_name FROM users WHERE u_id = %s and is_deleted = FALSE"
+            val = (user_id,)
+            self.cursor.execute(sql, val)
+            result = self.cursor.fetchone()
+            if result:
+                return {
+                    "u_id": result[0],
+                    "username": result[1]        
+                }
+            else:
+                return None
+        except mysql.connector.Error as err:
+            logger.error(f"获取用户基本信息时发生错误: {err}")
+            raise
+
+    def get_user_all_info(self, user_id):
+        """
+        获取用户所有信息
+        """
+        try:
+            sql = "SELECT * FROM users WHERE u_id = %s and is_deleted = FALSE"
+            val = (user_id,)
+            self.cursor.execute(sql, val)
+            result = self.cursor.fetchone()
+            if result:
+                return {
+                    "u_id": result[0],
+                    "username": result[1],        
+                    "register_time": result[3]
+                }
+            else:
+                return None
+        except mysql.connector.Error as err:
+            logger.error(f"获取用户所有信息时发生错误: {err}")
+            raise
+
+    def get_user_info_by_name(self, user_id):
+        """
+        根据用户名获取用户信息
+        """
+        try:
+            sql = "SELECT * FROM users WHERE u_name = %s and is_deleted = FALSE"
+            val = (user_id,)
+            self.cursor.execute(sql, val)
+            result = self.cursor.fetchone()
+            if result:
+                return {
+                    "u_id": result[0],
+                    "username": result[1],       
+                }
+            else:
+                return None
+        except mysql.connector.Error as err:
+            logger.error(f"获取用户信息时发生错误: {err}")
+            raise
+        
     def close(self):
         try:
             self.cursor.close()

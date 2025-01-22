@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS user_role (
 -- 任务表
 CREATE TABLE IF NOT EXISTS tasks (
     task_id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+    task_name VARCHAR(255) NOT NULL,
     publisher_id INT UNSIGNED NOT NULL,
     receiver_id INT UNSIGNED,
     task_state TINYINT UNSIGNED DEFAULT 0,

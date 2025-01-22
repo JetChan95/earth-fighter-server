@@ -30,7 +30,7 @@ class LoggerFactory(metaclass=SingletonMeta):
 
         # 创建一个格式化器
         # formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s')
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - #%(funcName)s - %(message)s')
         console_handler.setFormatter(formatter)
         file_handler.setFormatter(formatter)
 

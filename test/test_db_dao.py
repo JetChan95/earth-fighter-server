@@ -258,6 +258,32 @@ class TestEarthFighterDAO(unittest.TestCase):
         self.assertEqual(task['c_id'], c_id)
         self.assertEqual(task['task_desc'], "task_desc")
 
+    def test_delete_task(self):
+        c_name = "test_org"
+        creater_id = self.dao.add_user("test_user", "test_password")
+        c_id = self.dao.add_organization(c_name, "test_type", creater_id, "test_invite_code")
+        task_id = self.dao.publish_task("task_name", creater_id, None, 0, 3600, c_id, "task_desc")
+        rows_affected = self.dao.delete_task(task_id)
+        self.assertEqual(rows_affected, 1)        
+
+    def test_get_user_info(self):
+        u_id = self.dao.add_user("test_user", "test_password")   
+        user_info = self.dao.get_user_base_info(u_id)
+        self.assertIsNotNone(user_info)
+        self.assertEqual(user_info['u_id'], u_id)
+        self.assertEqual(user_info['username'], "test_user")
+        
+        user_all_info = self.dao.get_user_all_info(u_id)
+        self.assertIsNotNone(user_all_info)
+        self.assertEqual(user_all_info['u_id'], u_id)
+        self.assertEqual(user_all_info['username'], "test_user")
+        self.assertIsNotNone(user_all_info['register_time'])
+
+    def test_get_user_info_by_name(self):
+        u_id = self.dao.add_user("test_user", "test_password")
+        user_info = self.dao.get_user_info_by_name("test_user")
+        self.assertIsNotNone(user_info)
+        
 if __name__ == '__main__':
     unittest.main()
    

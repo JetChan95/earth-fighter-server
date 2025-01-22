@@ -13,8 +13,11 @@ class UserModel(BaseModel):
 class UserPath(BaseModel):
     u_id: int = Field(..., description = '用户id')
 
-class UserRenameModel(BaseModel):
+class UserNameModel(BaseModel):
     username: str = Field(..., description='用户名')
+    
+class UserPasswordModel(BaseModel):
+    password: str = Field(..., description='密码')
 
 class OrganizationModel(BaseModel):
     c_id: int = Field(description = '组织ID')
@@ -42,3 +45,7 @@ class TaskPath(BaseModel):
     
 class TaskStateModel(BaseModel):
     task_state: str = Field(..., description = '任务状态')
+    
+class OrgUserModel(BaseModel):
+    u_id: int = Field(..., description = '用户id')
+    c_id: int = Field(..., description = '组织id')

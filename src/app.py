@@ -64,7 +64,7 @@ def create_user(body: UserModel):
             logger.error("添加用户时角色不存在")
             return jsonify({"message": "添加用户失败"}), 400
         dao.assign_user_role(u_id, role_id)
-        return jsonify({"message": "用户添加成功"}), 201
+        return jsonify({"message": "用户添加成功", "u_id": u_id}), 201
     except Exception as e:
         logger.error(f"添加用户时发生错误: {e}")
         return jsonify({"message": "添加用户失败", "error": str(e)}), 500
@@ -108,7 +108,8 @@ def user_login(body: LoginModel):
         logger.error(f"用户登录时发生错误: {e}")
         return jsonify({"message": "登录失败", "error": str(e)}), 500
 
-@app.delete("/users/delete/<int:u_id>",
+# 删除用户
+@app.delete("/users/<int:u_id>/delete",
             tags=[user_tag],
             summary="删除用户",
             responses={"200": {"description": "用户删除成功"}},
@@ -137,13 +138,14 @@ def delete_user(path: UserPath):
         logger.error(f"删除用户时发生错误: {e}")
         return jsonify({"message": "删除用户失败", "error": str(e)}), 500
 
-@app.put('/users/update/<int:u_id>',
-         tags=[user_tag],
-        summary="修改用户名",
-        responses={"200": {"description": "用户名修改成功"}},
-        security=security)
+# 修改用户名
+@app.put('/users/<int:u_id>/username',
+            tags=[user_tag],
+            summary="修改用户名",
+            responses={"200": {"description": "用户名修改成功"}},
+            security=security)
 @jwt_required()
-def update_user(path: UserPath, body: UserRenameModel):
+def update_user_name(path: UserPath, body: UserNameModel):
     """
     用户信息修改
     """
@@ -170,6 +172,89 @@ def update_user(path: UserPath, body: UserRenameModel):
         logger.error(f"更新用户时发生错误: {e}")
         return jsonify({"message": "更新用户失败", "error": str(e)}), 500
 
+# 修改用户密码
+@app.put('/users/<int:u_id>/password',
+         tags=[user_tag],
+        summary="修改用户密码",
+        responses={"200": {"description": "用户密码修改成功"}},
+        security=security)
+@jwt_required()
+def update_user_password(path: UserPath, body: UserPasswordModel):
+    """
+    用户信息修改
+    """
+    try:
+        u_id = path.u_id
+        # 获取当前登录用户的ID
+        current_user_id = int(get_jwt_identity())
+        # 只有用户自己可以修改自己的信息
+        if current_user_id != u_id:
+            return jsonify({"message": "无权修改该用户信息"}), 403
+
+        new_password = body.password
+        rows_affected = dao.update_user_password(u_id, new_password)
+        if rows_affected > 0:
+            return jsonify({"message": "User password updated successfully"}), 200
+        else:
+            return jsonify({"message": "User password update fail"}), 404
+    except Exception as e:
+        logger.error(f"更新用户时发生错误: {e}")
+        return jsonify({"message": "更新用户密码失败", "error": str(e)}), 500
+
+# Get用户信息
+@app.get('/users/<int:u_id>/info',
+        tags=[user_tag],
+        summary="获取用户信息",
+        responses={"200": {"description": "用户信息获取成功"}},
+        security=security)
+@jwt_required()
+def get_user_info(path: UserPath):
+    """
+    获取用户信息
+    """
+    try:
+        u_id = path.u_id
+        
+        # 获取当前登录用户的ID
+        current_user_id = int(get_jwt_identity())
+        # 获取自己的信息可获得全量信息，非自己的信息只能获取部分信息
+        if current_user_id!= u_id:
+            # 获取用户基本信息
+            user_info = dao.get_user_base_info(u_id)
+        else:
+            # 获取用户全量信息
+            user_info = dao.get_user_all_info(u_id)
+        
+        if user_info:
+            return jsonify({"message": "User info get successfully", "user_info": user_info}), 200
+        else:
+            return jsonify({"message": "User info get fail"}), 404
+    except Exception as e:
+        logger.error(f"获取用户信息时发生错误: {e}")
+        return jsonify({"message": "获取用户信息失败", "error": str(e)}), 500
+
+# 根据用户名查询用户信息
+@app.get('/users/info',
+        tags=[user_tag],
+        summary="根据用户名查询用户信息",
+        responses={"200": {"description": "用户信息获取成功"}},
+        security=security)
+@jwt_required()
+def get_user_info_by_name(body: UserNameModel):
+    """
+    获取用户信息
+    """
+    try:
+        username = body.username
+        # 查找用户
+        user_info = dao.get_user_info_by_name(username)
+        if user_info:
+            return jsonify({"message": "User info get successfully", "user_info": user_info}), 200
+        else:
+            return jsonify({"message": "User info get fail"}), 404
+    except Exception as e:
+        logger.error(f"获取用户信息时发生错误: {e}")
+        return jsonify({"message": "获取用户信息失败", "error": str(e)}), 500
 
 # 组织管理API
 @app.post('/organizations/create',
@@ -208,7 +293,7 @@ def create_organization(body: OrganizationModel):
         logger.error(f"添加组织时发生错误: {e}")
         return jsonify({"message": "添加组织失败", "error": str(e)}), 500
 
-@app.delete('/organizations/delete/<string:c_id>',
+@app.delete('/organizations/<int:c_id>/delete',
             tags=[org_tag],
             summary="删除组织",
             responses={"200": {"description": "组织删除成功"}},
@@ -236,19 +321,19 @@ def delete_organization(path: OrgPath):
         logger.error(f"删除组织时发生错误: {e}")
         return jsonify({"message": "删除组织失败", "error": str(e)}), 500
 
-@app.post('/organizations/join',
+@app.put('/organizations/<int:c_id>/join',
         tags=[org_tag],
         summary="加入组织",
         responses={"200": {"description": "组织加入成功"}},
         security=security)
 @jwt_required()
-def join_organization(body: OrganizationModel):
+def join_organization(path: OrgPath,body: OrganizationModel):
     """
     加入组织
     """
     try:
-        user_id = get_jwt_identity()
-        org_id = body.c_id
+        user_id = int(get_jwt_identity())
+        org_id = path.c_id
         invite_code = body.invite_code
 
         if not org_id or not invite_code:
@@ -274,11 +359,11 @@ def join_organization(body: OrganizationModel):
         logger.error(f"user:{user_id}加入组织{org_id}时发生错误: {e}")
         return jsonify({"message": "加入组织失败", "error": str(e)}), 500
 
-@app.delete('/organizations/leave/<int:c_id>',
-            tags=[org_tag],
-            summary="离开组织",
-            responses={"204": {"description": "组织离开成功"}},
-            security=security)
+@app.put('/organizations/<int:c_id>/leave',
+        tags=[org_tag],
+        summary="离开组织",
+        responses={"200": {"description": "组织离开成功"}},
+        security=security)
 @jwt_required()
 def leave_organization(path: OrgPath):
     """
@@ -297,15 +382,44 @@ def leave_organization(path: OrgPath):
 
         # 校验用户是否在该组织
         if not dao.is_user_in_organization(user_id, org_id):
-            return jsonify({"message": "用户不在该组织"}), 403
+            return jsonify({"message": "用户不属于该组织"}), 403
 
         # 离开组织
         dao.remove_user_from_organization(user_id, org_id)
-        return jsonify({"message": "成功离开组织", "organization": org_info}), 204
+        return jsonify({"message": "成功离开组织", "organization": org_info}), 200
 
     except Exception as e:
         logger.error(f"user:{user_id}离开组织{org_id}时发生错误: {e}")
         return jsonify({"message": "离开组织失败", "error": str(e)}), 500
+
+# Get组织信息
+@app.get('/organizations/<int:c_id>/info',
+         tags=[org_tag],
+         summary="获取组织信息",
+         responses={"200": {"description": "组织信息获取成功"}},
+         security=security)
+@jwt_required()
+def get_organization_info(path: OrgPath):
+    """
+    获取组织信息
+    """
+    try:
+        c_id = path.c_id
+        
+        # 非组织成员无法获取
+        u_id = int(get_jwt_identity())
+        if not dao.is_user_in_organization(u_id, c_id):
+            return jsonify({"message": "无权限"}), 403
+            
+        # 获取组织信息
+        org_info = dao.get_organization(c_id)
+        if org_info:
+            return jsonify({"message": "OK", "org_info": org_info}), 200
+        else:
+            return jsonify({"message": "获取组织信息失败"}), 404
+    except Exception as e:
+        logger.error(f"获取组织信息时发生错误: {e}")
+        return jsonify({"message": "获取组织信息失败", "error": str(e)}), 500
 
 # 任务管理API
 # 发布任务
@@ -341,7 +455,7 @@ def publish_task(body: TaskModel):
         return jsonify({"message": "发布任务失败", "error": str(e)}), 500
 
 # 接取任务
-@app.put('/tasks/accept/<int:task_id>',
+@app.put('/tasks/<int:task_id>/accept',
          tags=[task_tag],
          summary="接受任务",
          responses={"200": {"description": "任务接受成功"}},
@@ -378,7 +492,7 @@ def accept_task(path: TaskPath):
         return jsonify({"message": "接取任务失败", "error": str(e)}), 500
     
 # 放弃任务
-@app.put('/tasks/abandon/<int:task_id>',
+@app.put('/tasks/<int:task_id>/abandon',
         tags=[task_tag],
          summary="放弃任务",
          responses={"200": {"description": "任务放弃成功"}},
@@ -415,7 +529,7 @@ def abandon_task(path: TaskPath):
         return jsonify({"message": "放弃任务失败", "error": str(e)}), 500
 
 # 提交任务
-@app.put('/tasks/submit/<int:task_id>',
+@app.put('/tasks/<int:task_id>/submit',
         tags=[task_tag],
         summary="提交任务",
         responses={"200": {"description": "任务提交成功"}},
@@ -452,10 +566,10 @@ def submit_task(path: TaskPath):
         return jsonify({"message": "提交任务失败", "error": str(e)}), 500
     
 # 确认任务
-@app.put('/tasks/confirm/<int:task_id>',
+@app.put('/tasks/<int:task_id>/confirm',
         tags=[task_tag],
-        summary="提交任务",
-        responses={"200": {"description": "任务提交成功"}},
+        summary="确认任务",
+        responses={"200": {"description": "任务确认成功"}},
         security=security)
 @jwt_required()
 def confirm_task(path: TaskPath):
@@ -487,6 +601,45 @@ def confirm_task(path: TaskPath):
     except Exception as e:
         logger.error(f"确认任务时发生错误: {e}")
         return jsonify({"message": "确认任务失败", "error": str(e)}), 500
+
+# 删除任务
+@app.delete('/tasks/<int:task_id>/delete',
+            tags=[task_tag],
+            summary="删除任务",
+            responses={"200": {"description": "任务删除成功"}},
+            security=security)
+@jwt_required()
+def delete_task(path: TaskPath):
+    """
+    删除任务
+    """
+    try:
+        user_id = int(get_jwt_identity())
+        task_id = path.task_id
+        
+        task = dao.get_task_by_id(task_id)
+        # 检查任务存在
+        if not task:
+            return jsonify({"message": "Task not found"}), 404
+
+        # 检查用户是否为任务的发布者
+        publisher_id = task.get('publisher_id')
+        logger.debug(f"publisher_id:{publisher_id}, user_id:{user_id}")
+        if user_id!= publisher_id:
+            return jsonify({"message": "只有任务的发布者才能删除任务"}), 403
+
+
+        
+        # 删除任务
+        rows_affected = dao.delete_task(task_id)
+        if rows_affected > 0:
+            return jsonify({"message": "Task deleted successfully"}), 200
+        else:
+            return jsonify({"message": "Task not found"}), 404
+    except Exception as e:
+        logger.error(f"删除任务时发生错误: {e}")
+        return jsonify({"message": "删除任务失败", "error": str(e)}), 500
+
 
 # 全局错误处理
 @app.errorhandler(Exception)
