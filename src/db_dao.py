@@ -402,15 +402,16 @@ class EarthFighterDAO:
             logger.error(f"获取用户所有信息时发生错误: {err}")
             raise
 
-    def get_user_info_by_name(self, user_id):
+    def get_user_info_by_name(self, user_name):
         """
         根据用户名获取用户信息
         """
         try:
             sql = "SELECT * FROM users WHERE u_name = %s and is_deleted = FALSE"
-            val = (user_id,)
+            val = (user_name,)
             self.cursor.execute(sql, val)
             result = self.cursor.fetchone()
+            logger.debug(f'DB查询用户信息{result}')
             if result:
                 return {
                     "u_id": result[0],

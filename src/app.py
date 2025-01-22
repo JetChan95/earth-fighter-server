@@ -224,6 +224,7 @@ def get_user_info(path: UserPath):
         else:
             # 获取用户全量信息
             user_info = dao.get_user_all_info(u_id)
+        logger.debug(user_info)
         
         if user_info:
             return jsonify({"message": "User info get successfully", "user_info": user_info}), 200
@@ -234,20 +235,21 @@ def get_user_info(path: UserPath):
         return jsonify({"message": "获取用户信息失败", "error": str(e)}), 500
 
 # 根据用户名查询用户信息
-@app.get('/users/info',
+@app.get('/users/<string:username>/info',
         tags=[user_tag],
         summary="根据用户名查询用户信息",
         responses={"200": {"description": "用户信息获取成功"}},
         security=security)
 @jwt_required()
-def get_user_info_by_name(body: UserNameModel):
+def get_user_info_by_name(path: UserNameModel):
     """
     获取用户信息
     """
     try:
-        username = body.username
+        username = path.username
         # 查找用户
         user_info = dao.get_user_info_by_name(username)
+        logger.debug(user_info)
         if user_info:
             return jsonify({"message": "User info get successfully", "user_info": user_info}), 200
         else:
