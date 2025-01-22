@@ -715,6 +715,41 @@ class TestApp(unittest.TestCase):
         response = requests.get(f'{self.base_url}/organizations/{0}/tasks', headers=headers)
         self.assertEqual(response.status_code, 403)
 
+    def test_get_user_tasks(self):
+         # 准备测试数据
+        user_a = generate_user_data()
+        org_a = generate_org_data()
+        # 发送POST请求创建用户
+        response = requests.post(f'{self.base_url}/users/create', json=user_a)
+        self.assertEqual(response.status_code, 201)
+        u_id_a = response.json().get('u_id')
+        # 登录用户a
+        response = requests.post(f'{self.base_url}/users/login', json=user_a)
+        self.assertEqual(response.status_code, 200)
+        headers = {
+            "Authorization": f"Bearer {response.json()['access_token']}"
+        }
+        # 创建组织a
+        response = requests.post(f'{self.base_url}/organizations/create', json=org_a, headers=headers)
+        self.assertEqual(response.status_code, 201)
+        org_id_a = response.json().get('c_id')
+        # 发布任务
+        task_data = generate_task_data()
+        task_data['c_id'] = org_id_a
+        task_data['publisher_id'] = u_id_a
+        response = requests.put(f'{self.base_url}/tasks/publish', json=task_data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+
+        # 查询成功
+        response = requests.get(f'{self.base_url}/users/tasks', headers=headers)
+        self.assertEqual(response.status_code, 200)
+        task_list = response.json().get('tasks')
+        self.assertEqual(len(task_list), 1)
+
+        # 非法查询，未认证
+        response = requests.get(f'{self.base_url}/users/tasks')
+        self.assertEqual(response.status_code, 401)
+
 
 if __name__ == '__main__':
     unittest.main()

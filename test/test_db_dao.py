@@ -325,7 +325,25 @@ class TestEarthFighterDAO(unittest.TestCase):
         task_list = self.dao.get_tasks_by_organization(0)
         self.assertEqual(len(task_list), 0)
 
-        
+    def test_get_tasks_by_user(self):
+        # 创建用户
+        u_id = self.dao.add_user("test_user", "test_password")
+        # 创建组织
+        org_id1 = self.dao.add_organization("c_name_1", "family", u_id, 'code')
+        # 加入组织
+        self.dao.add_user_to_organization(u_id, org_id1)
+        # 发布任务1
+        task_id = self.dao.publish_task("task_name_1", u_id, None, 0, 3600, org_id1, "task_desc")
+        task_list = self.dao.get_tasks_by_user(u_id)
+        self.assertEqual(len(task_list), 1)
+        # 发布任务2
+        task_id = self.dao.publish_task("task_name_2", u_id, None, 0, 3600, org_id1, "task_desc")
+        task_list = self.dao.get_tasks_by_user(u_id)
+        self.assertEqual(len(task_list), 2)
+
+        task_list = self.dao.get_tasks_by_user(0)
+        self.assertEqual(len(task_list), 0)
+   
 if __name__ == '__main__':
     unittest.main()
    

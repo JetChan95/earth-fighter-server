@@ -280,6 +280,28 @@ def get_user_organizations():
         logger.error(f"获取用户组织列表时发生错误: {e}")
         return jsonify({"message": "error", "error": str(e)}), 500
 
+# 获取用户任务列表
+@app.get('/users/tasks',
+         tags=[user_tag],
+         summary="获取用户任务列表",
+         responses={"200": {"description": "用户任务列表获取成功"}},
+         security=security)
+@jwt_required()
+def get_user_tasks():
+    """
+    获取用户任务列表
+    """
+    try:
+        user_id = int(get_jwt_identity())
+        tasks = dao.get_tasks_by_user(user_id)
+        if tasks:
+            return jsonify({"message": "OK", "tasks": tasks}), 200
+        else:
+            return jsonify({"message": "Fail"}), 404
+    except Exception as e:
+        logger.error(f"获取用户任务列表时发生错误: {e}")
+        return jsonify({"message": "error", "error": str(e)}), 500
+
 # 组织管理API
 @app.post('/organizations/create',
          tags=[org_tag],

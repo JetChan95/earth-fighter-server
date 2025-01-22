@@ -477,7 +477,33 @@ class EarthFighterDAO:
         except mysql.connector.Error as err:
             logger.error(f"获取任务列表时发生错误: {err}")
             raise
-
+    def get_tasks_by_user(self, u_id):
+        """
+        根据组织ID获取任务列表
+        """
+        try:
+            sql = "SELECT * FROM tasks WHERE (receiver_id = %s OR publisher_id = %s) AND is_deleted = FALSE"
+            val = (u_id, u_id)
+            self.cursor.execute(sql, val)
+            results = self.cursor.fetchall()
+            tasks = []
+            for result in results:
+                tasks.append({
+                    "task_id": result[0],
+                    "task_name": result[1],
+                    "publisher_id": result[2],
+                    "receiver_id": result[3],
+                    "task_state": result[4],
+                    "publish_time": result[5],
+                    "time_limit": result[6],
+                    "completion_time": result[7],
+                    "c_id": result[9],
+                    "task_desc": result[10]
+                })
+            return tasks
+        except mysql.connector.Error as err:
+            logger.error(f"获取任务列表时发生错误: {err}")
+            raise
 
     def close(self):
         try:
