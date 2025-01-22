@@ -599,8 +599,7 @@ class TestApp(unittest.TestCase):
             "Authorization": f"Bearer {response.json()['access_token']}"
         }
         # 获取用户a信息
-        data = {"username": user_a['username']}
-        response = requests.get(f'{self.base_url}/users/info', json=data, headers=headers)
+        response = requests.get(f'{self.base_url}/users/{user_a["username"]}/info', headers=headers)
         self.assertEqual(response.status_code, 200)
         self.assertIsNotNone(response.json().get('user_info').get('u_id'))
         self.assertIsNotNone(response.json().get('user_info').get('username'))

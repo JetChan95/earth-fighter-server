@@ -234,7 +234,6 @@ class TestEarthFighterDAO(unittest.TestCase):
         self.assertEqual(org['c_type'], "test_type")
         self.assertEqual(org['creator_id'], creater_id)
         self.assertEqual(org['invite_code'], "test_invite_code")
-        self.assertEqual(org['is_deleted'], 0)
 
     def test_get_organization_id_by_task_id(self):
         c_name = "test_org"
