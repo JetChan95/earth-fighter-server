@@ -18,16 +18,10 @@ class TestApp(unittest.TestCase):
     def setUpClass(cls):
         # 初始化数据库
         initialize_database()
-        # 启动Flask应用
-        cls.process = subprocess.Popen(['python', 'src/app.py'])
-        time.sleep(1)  # 等待应用启动
         cls.base_url = "http://127.0.0.1:5000"
 
     @classmethod
     def tearDownClass(cls):
-       # 关闭Flask应用
-        cls.process.terminate()
-        cls.process.wait()
         pass
         
     def setUp(self):
