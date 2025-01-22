@@ -445,6 +445,34 @@ def get_organization_info(path: OrgPath):
         logger.error(f"获取组织信息时发生错误: {e}")
         return jsonify({"message": "获取组织信息失败", "error": str(e)}), 500
 
+@app.get('/organizations/<int:c_id>/tasks',
+         tags=[org_tag],
+         summary="获取组织任务列表",
+         responses={"200": {"description": "组织任务列表获取成功"}},
+         security=security)
+@jwt_required()
+def get_organization_tasks(path: OrgPath):
+    """
+    获取组织中发布的所有任务
+    """
+    try:
+        # 获取当前登录用户的ID
+        user_id = get_jwt_identity()
+        c_id = path.c_id
+        # 检查用户是否为组织成员
+        if not dao.is_user_in_organization(user_id, c_id):
+            return jsonify({"message": "无权限"}), 403
+        
+        # 获取组织中发布的所有任务
+        tasks = dao.get_tasks_by_organization(c_id)
+        if tasks:
+            return jsonify({"message": "OK", "tasks": tasks}), 200
+        else:
+            return jsonify({"message": "Fail"}), 404
+    except Exception as e:
+        logger.error(f'获取任务列表时发生错误：{e}')
+        return jsonify({"message": "获取任务列表时发生错误", "error": str(e)}), 500
+
 # 任务管理API
 # 发布任务
 @app.put('/tasks/publish',
@@ -458,8 +486,7 @@ def publish_task(body: TaskModel):
     发布任务
     """
     try:
-        data = request.get_json()
-        user_id = get_jwt_identity()
+        user_id = int(get_jwt_identity())
 
         # 检查用户是否为组织成员
         if not dao.is_user_in_organization(user_id, body.c_id):
@@ -473,7 +500,7 @@ def publish_task(body: TaskModel):
         task_status = config['task_status']['pending']
 
         task_id = dao.publish_task(body.task_name, body.publisher_id, receiver_id, task_status, body.time_limit, body.c_id, body.task_desc)
-        return jsonify({"message": "Task published successfully", "task_id": task_id}), 201
+        return jsonify({"message": "Task published successfully", "task_id": task_id}), 200
     except Exception as e:
         logger.error(f"发布任务时发生错误: {e}")
         return jsonify({"message": "发布任务失败", "error": str(e)}), 500

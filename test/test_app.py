@@ -16,8 +16,6 @@ from ultils import *
 class TestApp(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        # 初始化数据库
-        initialize_database()
         cls.base_url = "http://127.0.0.1:5000"
 
     @classmethod
@@ -158,10 +156,17 @@ class TestApp(unittest.TestCase):
             headers = {
                 "Authorization": f"Bearer {response.json()['access_token']}"
             }
-
             # 创建组织
             response = requests.post(f'{self.base_url}/organizations/create', json=organization_data, headers=headers)
             self.assertEqual(response.status_code, 201)
+            org_id = response.json().get('c_id')
+            # 获取组织
+            response = requests.get(f'{self.base_url}/users/organizations', json=organization_data, headers=headers)
+            self.assertEqual(response.status_code, 200)
+            org_list = response.json().get('org_list')
+            org_id_list = [org.get('c_id') for org in org_list]
+            self.assertIn(org_id, org_id_list)
+            
 
     def test_delete_organization(self):
             # 准备测试数据
@@ -334,7 +339,7 @@ class TestApp(unittest.TestCase):
             task_data['c_id'] = org_id
             task_data['publisher_id'] = response.json()['data']['user_id']
             response = requests.put(f'{self.base_url}/tasks/publish', json=task_data, headers=headers)
-            self.assertEqual(response.status_code, 201)
+            self.assertEqual(response.status_code, 200)
 
             # 加入者发布任务
             response = requests.post(f'{self.base_url}/users/login', json=joiner_data)
@@ -345,7 +350,7 @@ class TestApp(unittest.TestCase):
             task_data['c_id'] = org_id
             task_data['publisher_id'] = response.json()['data']['user_id']
             response = requests.put(f'{self.base_url}/tasks/publish', json=task_data, headers=headers)
-            self.assertEqual(response.status_code, 201)
+            self.assertEqual(response.status_code, 200)
 
     def test_accept_abandon_task(self):
         # 准备测试数据
@@ -390,7 +395,7 @@ class TestApp(unittest.TestCase):
         task_data['c_id'] = org_id
         task_data['publisher_id'] = response.json()['data']['user_id']
         response = requests.put(f'{self.base_url}/tasks/publish', json=task_data, headers=headers)
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.status_code, 200)
         task_id = response.json()["task_id"]
 
         # 加入者接受任务
@@ -460,7 +465,7 @@ class TestApp(unittest.TestCase):
         task_data['c_id'] = org_id
         task_data['publisher_id'] = response.json()['data']['user_id']
         response = requests.put(f'{self.base_url}/tasks/publish', json=task_data, headers=headers)
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.status_code, 200)
         task_id = response.json()["task_id"]
 
         # 加入者接受任务
@@ -518,7 +523,7 @@ class TestApp(unittest.TestCase):
         task_data['c_id'] = org_id
         task_data['publisher_id'] = u_id
         response = requests.put(f'{self.base_url}/tasks/publish', json=task_data, headers=headers)
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.status_code, 200)
         task_id = response.json()["task_id"]
 
         # 未认证删除任务
@@ -670,6 +675,46 @@ class TestApp(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         org_list = response.json().get('org_list')
         self.assertEqual(len(org_list), 2)
+
+    def test_get_organization_tasks(self):
+         # 准备测试数据
+        user_a = generate_user_data()
+        org_a = generate_org_data()
+        # 发送POST请求创建用户
+        response = requests.post(f'{self.base_url}/users/create', json=user_a)
+        self.assertEqual(response.status_code, 201)
+        u_id_a = response.json().get('u_id')
+        # 登录用户a
+        response = requests.post(f'{self.base_url}/users/login', json=user_a)
+        self.assertEqual(response.status_code, 200)
+        headers = {
+            "Authorization": f"Bearer {response.json()['access_token']}"
+        }
+        # 创建组织a
+        response = requests.post(f'{self.base_url}/organizations/create', json=org_a, headers=headers)
+        self.assertEqual(response.status_code, 201)
+        org_id_a = response.json().get('c_id')
+        # 发布任务
+        task_data = generate_task_data()
+        task_data['c_id'] = org_id_a
+        task_data['publisher_id'] = u_id_a
+        response = requests.put(f'{self.base_url}/tasks/publish', json=task_data, headers=headers)
+        self.assertEqual(response.status_code, 200)
+
+        # 查询成功
+        response = requests.get(f'{self.base_url}/organizations/{org_id_a}/tasks', headers=headers)
+        self.assertEqual(response.status_code, 200)
+        task_list = response.json().get('tasks')
+        self.assertEqual(len(task_list), 1)
+
+        # 非法查询，未认证
+        response = requests.get(f'{self.base_url}/organizations/{org_id_a}/tasks')
+        self.assertEqual(response.status_code, 401)
+
+        # 非法查询，无权限访问组织
+        response = requests.get(f'{self.base_url}/organizations/{0}/tasks', headers=headers)
+        self.assertEqual(response.status_code, 403)
+
 
 if __name__ == '__main__':
     unittest.main()
