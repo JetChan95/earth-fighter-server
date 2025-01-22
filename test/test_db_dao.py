@@ -143,43 +143,48 @@ class TestEarthFighterDAO(unittest.TestCase):
 
     def test_publish_task(self):
         publisher_id = self.dao.add_user("publisher", "publisher_password")
-        task_id = self.dao.publish_task(publisher_id, None, 0, 3600)
+        org_id = self.dao.add_organization("test_org", "test_type", publisher_id, "test_invite_code")
+        task_id = self.dao.publish_task("task_name", publisher_id, None, 0, 3600, org_id, "task_desc")
         self.cursor.execute("SELECT * FROM tasks WHERE task_id = %s", (task_id,))
         task = self.cursor.fetchone()
         self.assertIsNotNone(task)
-        self.assertEqual(task[1], publisher_id)
-        self.assertEqual(task[2], None)
-        self.assertEqual(task[3], 0)
+        self.assertEqual(task[1], "task_name")
+        self.assertEqual(task[2], publisher_id)
+        self.assertEqual(task[3], None)
+        self.assertEqual(task[4], 0)
 
     def test_update_task_status(self):
         publisher_id = self.dao.add_user("publisher", "publisher_password")
         receiver_id = self.dao.add_user("receiver", "receiver_password")
-        task_id = self.dao.publish_task(publisher_id, receiver_id, 0, 3600)
+        org_id = self.dao.add_organization("test_org", "test_type", publisher_id, "test_invite_code")
+        task_id = self.dao.publish_task("task_name", publisher_id, None, 0, 3600, org_id, "task_desc")
         rows_affected = self.dao.update_task_status(task_id, 1)
         self.assertEqual(rows_affected, 1)        
         self.cursor.execute("SELECT * FROM tasks WHERE task_id = %s", (task_id,))
         task = self.cursor.fetchone()
         self.assertIsNotNone(task)
-        self.assertEqual(task[3], 1)
+        self.assertEqual(task[4], 1)
 
     def test_receive_task(self):
         publisher_id = self.dao.add_user("publisher", "publisher_password")
         receiver_id = self.dao.add_user("receiver", "receiver_password")
-        task_id = self.dao.publish_task(publisher_id, None, 0, 3600)
+        org_id = self.dao.add_organization("test_org", "test_type", publisher_id, "test_invite_code")
+        task_id = self.dao.publish_task("task_name", publisher_id, None, 0, 3600, org_id, "task_desc")
         task_state = 1
         rows_affected = self.dao.update_task_status_and_receiver(task_id, task_state, receiver_id)
         self.assertEqual(rows_affected, 1)
         self.cursor.execute("SELECT * FROM tasks WHERE task_id = %s", (task_id,))
         task = self.cursor.fetchone()
         self.assertIsNotNone(task)
-        self.assertEqual(task[3], task_state)
-        self.assertEqual(task[2], receiver_id)
+        self.assertEqual(task[4], task_state)
+        self.assertEqual(task[3], receiver_id)
 
     def test_get_task_status(self):
         publisher_id = self.dao.add_user("publisher", "publisher_password")
         receiver_id = self.dao.add_user("receiver", "receiver_password")
         task_state = 0
-        task_id = self.dao.publish_task(publisher_id, receiver_id, task_state, 3600)
+        org_id = self.dao.add_organization("test_org", "test_type", publisher_id, "test_invite_code")
+        task_id = self.dao.publish_task("task_name", publisher_id, None, 0, 3600, org_id, "task_desc")
         self.assertEqual(task_state, self.dao.get_task_status(task_id))
 
     def test_add_user_to_organization(self):
@@ -231,6 +236,27 @@ class TestEarthFighterDAO(unittest.TestCase):
         self.assertEqual(org['invite_code'], "test_invite_code")
         self.assertEqual(org['is_deleted'], 0)
 
+    def test_get_organization_id_by_task_id(self):
+        c_name = "test_org"
+        creater_id = self.dao.add_user("test_user", "test_password")
+        c_id = self.dao.add_organization(c_name, "test_type", creater_id, "test_invite_code")
+        task_id = self.dao.publish_task("task_name", creater_id, None, 0, 3600, c_id, "task_desc")
+        self.assertEqual(c_id, self.dao.get_organization_id_by_task_id(task_id))
+
+    def test_get_task_by_id(self):
+        c_name = "test_org"
+        creater_id = self.dao.add_user("test_user", "test_password")
+        c_id = self.dao.add_organization(c_name, "test_type", creater_id, "test_invite_code")
+        task_id = self.dao.publish_task("task_name", creater_id, None, 0, 3600, c_id, "task_desc")
+        task = self.dao.get_task_by_id(task_id)
+        print(task)
+        self.assertIsNotNone(task)
+        self.assertEqual(task['task_name'], "task_name")
+        self.assertEqual(task['publisher_id'], creater_id)
+        self.assertEqual(task['receiver_id'], None)
+        self.assertEqual(task['task_state'], 0)
+        self.assertEqual(task['c_id'], c_id)
+        self.assertEqual(task['task_desc'], "task_desc")
 
 if __name__ == '__main__':
     unittest.main()

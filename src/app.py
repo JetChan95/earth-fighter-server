@@ -34,6 +34,8 @@ app.config['JWT_SECRET_KEY'] = 'oa;shdpoignqopweh'
 auth_tag = Tag(name="用户认证", description="用户认证相关操作")
 user_tag = Tag(name="用户管理", description="用户管理API")
 org_tag = Tag(name="组织管理", description="组织管理API")
+task_tag = Tag(name="任务管理", description="任务管理API")
+
 # 用户管理API
 @app.post("/users/create",
           tags=[user_tag],
@@ -71,7 +73,7 @@ def create_user(body: UserModel):
           tags=[auth_tag],
           summary="获取JWT Token",
           responses={"200": {"description": "获取JWT Token成功"}})
-def user_login(body: UserModel):
+def user_login(body: LoginModel):
     """
     用户认证
     """
@@ -307,9 +309,13 @@ def leave_organization(path: OrgPath):
 
 # 任务管理API
 # 发布任务
-@app.route('/tasks/publish', methods=['POST'])
+@app.put('/tasks/publish',
+         tags=[task_tag],
+         summary="发布任务",
+         responses={"200": {"description": "任务发布成功"}},
+         security=security)
 @jwt_required()
-def publish_task():
+def publish_task(body: TaskModel):
     """
     发布任务
     """
@@ -318,34 +324,40 @@ def publish_task():
         user_id = get_jwt_identity()
 
         # 检查用户是否为组织成员
-        if not dao.is_user_in_organization(user_id, data['c_id']):
+        if not dao.is_user_in_organization(user_id, body.c_id):
             return jsonify({"message": "只有组织成员才能发布任务"}), 403
 
         # 默认接收者为空
-        receiver_id = data.get('receiver_id', None)
+        receiver_id = None
 
         # 获取任务状态配置
         config = cfg.get_config()
         task_status = config['task_status']['pending']
 
-        task_id = dao.publish_task(data['publisher_id'], receiver_id, task_status, data['time_limit'], data['c_id'], data['task_desc'])
+        task_id = dao.publish_task(body.task_name, body.publisher_id, receiver_id, task_status, body.time_limit, body.c_id, body.task_desc)
         return jsonify({"message": "Task published successfully", "task_id": task_id}), 201
     except Exception as e:
         logger.error(f"发布任务时发生错误: {e}")
         return jsonify({"message": "发布任务失败", "error": str(e)}), 500
 
 # 接取任务
-@app.route('/tasks/<int:task_id>/accept', methods=['PUT'])
+@app.put('/tasks/accept/<int:task_id>',
+         tags=[task_tag],
+         summary="接受任务",
+         responses={"200": {"description": "任务接受成功"}},
+         security=security)
 @jwt_required()
-def accept_task(task_id):
+def accept_task(path: TaskPath):
     """
     接取任务
     """
     try:
         user_id = get_jwt_identity()
-    
+        task_id = path.task_id
         # 检查用户是否为组织成员
-        if not dao.is_user_in_organization(user_id, dao.get_task_organization(task_id)):
+        print(user_id, task_id)
+        org_id = dao.get_organization_id_by_task_id(task_id)
+        if not dao.is_user_in_organization(user_id, org_id):
             return jsonify({"message": "只有任务归属组织的成员才能接取任务"}), 403
     
         # 获取任务状态配置
@@ -366,29 +378,34 @@ def accept_task(task_id):
         return jsonify({"message": "接取任务失败", "error": str(e)}), 500
     
 # 放弃任务
-@app.route('/tasks/<int:task_id>/abandon', methods=['PUT'])
+@app.put('/tasks/abandon/<int:task_id>',
+        tags=[task_tag],
+         summary="放弃任务",
+         responses={"200": {"description": "任务放弃成功"}},
+         security=security)
 @jwt_required()
-def abandon_task(task_id):
+def abandon_task(path: TaskPath):
     """
     放弃任务
     """
     try:
-        user_id = get_jwt_identity()
-    
+        user_id = int(get_jwt_identity())
+        task_id = path.task_id
         # 检查用户是否为任务的接收者
-        if user_id != dao.get_task_receiver(task_id):
+        receiver_id = dao.get_task_by_id(task_id).get('receiver_id')
+        logger.debug(f"receiver_id:{receiver_id}, user_id:{user_id}")
+        if user_id != receiver_id:
             return jsonify({"message": "只有任务的接收者才能放弃任务"}), 403
     
         # 获取任务状态配置
         config = cfg.get_config()
-    
         # 检查任务状态是否为进行中或已过期
         task_status = dao.get_task_status(task_id)
         if task_status not in [config['task_status']['in_progress'], config['task_status']['expired']]:
             return jsonify({"message": "只有进行中或已过期的任务才能被放弃"}), 400
     
         # 更新任务状态为放弃
-        rows_affected = dao.update_task_status(task_id, config['task_status']['abandoned'])  # 假设放弃状态的值为7
+        rows_affected = dao.update_task_status(task_id, config['task_status']['abandoned'])
         if rows_affected > 0:
             return jsonify({"message": "Task abandoned successfully"}), 200
         else:
@@ -396,56 +413,25 @@ def abandon_task(task_id):
     except Exception as e:
         logger.error(f"放弃任务时发生错误: {e}")
         return jsonify({"message": "放弃任务失败", "error": str(e)}), 500
-    
-# 确认任务
-@app.route('/tasks/<int:task_id>/confirm', methods=['PUT'])
-@jwt_required()
-def confirm_task(task_id):
-    """
-    确认任务
-    """
-    try:
-        user_id = get_jwt_identity()
-    
-        # 检查用户是否为任务的发布者
-        if user_id != dao.get_task_publisher(task_id):
-            return jsonify({"message": "只有任务的发布者才能确认任务"}), 403
-    
-        # 获取任务状态配置
-        config = cfg.get_config()
-    
-        # 检查任务状态是否为待确认
-        if dao.get_task_status(task_id) != config['task_status']['to_be_confirmed']:
-            return jsonify({"message": "只有待确认的任务才能被确认"}), 400
-    
-        # 获取确认结果（成功或失败）
-        confirm_result = request.json.get('confirm_result')
-        if confirm_result not in ['success', 'failure']:
-            return jsonify({"message": "确认结果必须为'success'或'failure'"}), 400
-    
-        # 更新任务状态为成功或失败
-        task_status = config['task_status']['completed'] if confirm_result == 'success' else config['task_status']['failed']
-        rows_affected = dao.update_task_status(task_id, task_status)
-        if rows_affected > 0:
-            return jsonify({"message": f"Task confirmed as {confirm_result} successfully"}), 200
-        else:
-            return jsonify({"message": "Task not found"}), 404
-    except Exception as e:
-        logger.error(f"确认任务时发生错误: {e}")
-        return jsonify({"message": "确认任务失败", "error": str(e)}), 500
 
 # 提交任务
-@app.route('/tasks/<int:task_id>/submit', methods=['PUT'])
+@app.put('/tasks/submit/<int:task_id>',
+        tags=[task_tag],
+        summary="提交任务",
+        responses={"200": {"description": "任务提交成功"}},
+        security=security)
 @jwt_required()
-def submit_task(task_id):
+def submit_task(path: TaskPath):
     """
     提交任务
     """
     try:
-        user_id = get_jwt_identity()
-
+        user_id = int(get_jwt_identity())
+        task_id = path.task_id
         # 检查用户是否为任务的接收者
-        if user_id != dao.get_task_receiver(task_id):
+        receiver_id = dao.get_task_by_id(task_id).get('receiver_id')
+        logger.debug(f"receiver_id:{receiver_id}, user_id:{user_id}")
+        if user_id != receiver_id:
             return jsonify({"message": "只有任务的接收者才能提交任务"}), 403
 
         # 获取任务状态配置
@@ -464,6 +450,43 @@ def submit_task(task_id):
     except Exception as e:
         logger.error(f"提交任务时发生错误: {e}")
         return jsonify({"message": "提交任务失败", "error": str(e)}), 500
+    
+# 确认任务
+@app.put('/tasks/confirm/<int:task_id>',
+        tags=[task_tag],
+        summary="提交任务",
+        responses={"200": {"description": "任务提交成功"}},
+        security=security)
+@jwt_required()
+def confirm_task(path: TaskPath):
+    """
+    确认任务
+    """
+    try:
+        user_id = int(get_jwt_identity())
+        task_id = path.task_id
+        # 检查用户是否为任务的发布者
+        publisher_id = dao.get_task_by_id(task_id).get('publisher_id')
+        logger.debug(f"publisher_id:{publisher_id}, user_id:{user_id}")
+        if user_id != publisher_id:
+            return jsonify({"message": "只有任务的发布者才能确认任务"}), 403
+    
+        # 获取任务状态配置
+        config = cfg.get_config()
+    
+        # 检查任务状态是否为待确认
+        if dao.get_task_status(task_id) != config.get('task_status').get('to_be_confirmed'):
+            return jsonify({"message": "只有待确认的任务才能被确认"}), 400
+    
+        # 确认任务
+        rows_affected = dao.update_task_status(task_id, config.get('task_status').get('completed'))
+        if rows_affected > 0:
+            return jsonify({"message": f"Task confirmed successfully"}), 200
+        else:
+            return jsonify({"message": "Task not found"}), 404
+    except Exception as e:
+        logger.error(f"确认任务时发生错误: {e}")
+        return jsonify({"message": "确认任务失败", "error": str(e)}), 500
 
 # 全局错误处理
 @app.errorhandler(Exception)

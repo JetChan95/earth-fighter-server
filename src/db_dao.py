@@ -199,9 +199,12 @@ class EarthFighterDAO:
             self.db.rollback()
             raise
         
-    def publish_task(self, publisher_id, receiver_id, task_state, time_limit):
-        sql = "INSERT INTO tasks (publisher_id, receiver_id, task_state, publish_time, time_limit) VALUES (%s, %s, %s, NOW(), %s)"
-        val = (publisher_id, receiver_id, task_state, time_limit)
+    def publish_task(self, task_name, publisher_id, receiver_id, task_state, time_limit, c_id, task_desc):
+        sql = """
+                INSERT INTO tasks (task_name, publisher_id, receiver_id, task_state, publish_time, time_limit, c_id, task_desc) 
+                 VALUES (%s, %s, %s, %s, NOW(), %s, %s, %s)
+              """
+        val = (task_name, publisher_id, receiver_id, task_state, time_limit, c_id, task_desc)
         try:
             self.cursor.execute(sql, val)
             self.db.commit()
@@ -297,6 +300,52 @@ class EarthFighterDAO:
                 return None
         except mysql.connector.Error as err:
             logger.error(f"获取组织信息时发生错误: {err}")
+            raise
+
+    def get_organization_id_by_task_id(self, task_id):
+        """
+        根据任务ID获取组织ID
+        """
+        try:
+            sql = "SELECT c_id FROM tasks WHERE task_id = %s"
+            val = (task_id,)
+            self.cursor.execute(sql, val)
+            result = self.cursor.fetchone()
+            if result:
+                return result[0]
+            else:
+                return None
+        except mysql.connector.Error as err:
+            logger.error(f"获取组织ID时发生错误: {err}")
+            raise
+    
+    def get_task_by_id(self, task_id):
+        """
+        根据任务ID获取任务信息
+        """
+        try:
+            sql = "SELECT * FROM tasks WHERE task_id = %s"
+            val = (task_id,)
+            self.cursor.execute(sql, val)
+            result = self.cursor.fetchone()
+            if result:
+                logger.debug(f"{__name__}查询结果: {result}")
+                return {
+                    "task_id": result[0],
+                    "task_name": result[1],        
+                    "publisher_id": result[2],
+                    "receiver_id": result[3],
+                    "task_state": result[4],
+                    "publish_time": result[5],
+                    "time_limit": result[6],
+                    "completion_time": result[7],
+                    "c_id": result[9],
+                    "task_desc": result[10]
+                }
+            else:
+                return None
+        except mysql.connector.Error as err:
+            logger.error(f"获取任务信息时发生错误: {err}")
             raise
 
     def close(self):

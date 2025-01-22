@@ -15,7 +15,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..\src'
 # Now you can import from 'src'
 import app
 from db_init import initialize_database
-from ultils import generate_org_data, generate_user_data
+from ultils import *
 
 class TestApp(unittest.TestCase):
     @classmethod
@@ -277,5 +277,209 @@ class TestApp(unittest.TestCase):
             response = requests.delete(f'{self.base_url}/organizations/leave/{org_id}', headers=headers)
             self.assertEqual(response.status_code, 204)
 
+    def test_publish_task(self):
+            # 准备测试数据
+            creator_data = generate_user_data()
+            joiner_data = generate_user_data()
+            organization_data = generate_org_data()
+            task_data = generate_task_data()
+            # 发送POST请求创建用户
+            response = requests.post(f'{self.base_url}/users/create', json=creator_data)
+            response = requests.post(f'{self.base_url}/users/create', json=joiner_data)
+            #创建组织
+            response = requests.post(f'{self.base_url}/users/login', json=creator_data)
+            self.assertEqual(response.status_code, 200)
+            headers = {
+                "Authorization": f"Bearer {response.json()['access_token']}"
+            }
+            response = requests.post(f'{self.base_url}/organizations/create', json=organization_data, headers=headers)
+            self.assertEqual(response.status_code, 201)
+            org_id = response.json()['c_id']
+            invite_code = response.json()['invite_code']
+            join_info = {
+                'c_id': org_id,
+                'c_name': '',
+                'c_type': '',
+                'invite_code': invite_code
+            }
+            # 加入组织
+            response = requests.post(f'{self.base_url}/users/login', json=joiner_data)
+            self.assertEqual(response.status_code, 200)
+            headers = {
+                "Authorization": f"Bearer {response.json()['access_token']}"
+            }
+            response = requests.post(f'{self.base_url}/organizations/join', json=join_info, headers=headers)
+            self.assertEqual(response.status_code, 200)
+
+            # 创建者发布任务
+            response = requests.post(f'{self.base_url}/users/login', json=creator_data)
+            self.assertEqual(response.status_code, 200)
+            headers = {
+                "Authorization": f"Bearer {response.json()['access_token']}"
+            }
+            task_data['c_id'] = org_id
+            task_data['publisher_id'] = response.json()['data']['user_id']
+            response = requests.put(f'{self.base_url}/tasks/publish', json=task_data, headers=headers)
+            self.assertEqual(response.status_code, 201)
+
+            # 加入者发布任务
+            response = requests.post(f'{self.base_url}/users/login', json=joiner_data)
+            self.assertEqual(response.status_code, 200)
+            headers = {
+                "Authorization": f"Bearer {response.json()['access_token']}"
+            }
+            task_data['c_id'] = org_id
+            task_data['publisher_id'] = response.json()['data']['user_id']
+            response = requests.put(f'{self.base_url}/tasks/publish', json=task_data, headers=headers)
+            self.assertEqual(response.status_code, 201)
+
+    def test_accept_abandon_task(self):
+        # 准备测试数据
+        creator_data = generate_user_data()
+        joiner_data = generate_user_data()
+        organization_data = generate_org_data()
+        task_data = generate_task_data()
+        # 发送POST请求创建用户
+        response = requests.post(f'{self.base_url}/users/create', json=creator_data)
+        response = requests.post(f'{self.base_url}/users/create', json=joiner_data)
+        #创建组织
+        response = requests.post(f'{self.base_url}/users/login', json=creator_data)
+        self.assertEqual(response.status_code, 200)
+        headers = {
+            "Authorization": f"Bearer {response.json()['access_token']}"
+        }
+        response = requests.post(f'{self.base_url}/organizations/create', json=organization_data, headers=headers)
+        self.assertEqual(response.status_code, 201)
+        org_id = response.json()['c_id']
+        invite_code = response.json()['invite_code']
+        join_info = {
+            'c_id': org_id,
+            'c_name': '', 
+            'c_type': '',
+            'invite_code': invite_code
+        }
+        # 加入组织
+        response = requests.post(f'{self.base_url}/users/login', json=joiner_data)
+        self.assertEqual(response.status_code, 200)
+        headers = {
+            "Authorization": f"Bearer {response.json()['access_token']}"
+        }
+        response = requests.post(f'{self.base_url}/organizations/join', json=join_info, headers=headers)
+        self.assertEqual(response.status_code, 200)
+
+        # 创建者发布任务
+        response = requests.post(f'{self.base_url}/users/login', json=creator_data)
+        self.assertEqual(response.status_code, 200)
+        headers = {
+            "Authorization": f"Bearer {response.json()['access_token']}" 
+        }
+        task_data['c_id'] = org_id
+        task_data['publisher_id'] = response.json()['data']['user_id']
+        response = requests.put(f'{self.base_url}/tasks/publish', json=task_data, headers=headers)
+        self.assertEqual(response.status_code, 201)
+        task_id = response.json()["task_id"]
+
+        # 加入者接受任务
+        response = requests.post(f'{self.base_url}/users/login', json=joiner_data)
+        self.assertEqual(response.status_code, 200)
+        headers = {
+            "Authorization": f"Bearer {response.json()['access_token']}"
+        }
+        response = requests.put(f'{self.base_url}/tasks/accept/{task_id}', headers=headers)
+        self.assertEqual(response.status_code, 200)
+        # 重复接受任务
+        response = requests.put(f'{self.base_url}/tasks/accept/{task_id}', headers=headers)
+        self.assertEqual(response.status_code, 400)
+        
+        # 放弃任务
+        response = requests.put(f'{self.base_url}/tasks/abandon/{task_id}', headers=headers)
+        self.assertEqual(response.status_code, 200)
+        
+        # 重复放弃任务
+        response = requests.put(f'{self.base_url}/tasks/abandon/{task_id}', headers=headers)
+        self.assertEqual(response.status_code, 400)
+        
+        # 接受放弃的任务
+        response = requests.put(f'{self.base_url}/tasks/accept/{task_id}', headers=headers)
+        self.assertEqual(response.status_code, 400)
+
+    def test_accept_submit_confirm_task(self):
+        # 准备测试数据
+        creator_data = generate_user_data()
+        joiner_data = generate_user_data()
+        organization_data = generate_org_data()
+        task_data = generate_task_data()
+        # 发送POST请求创建用户
+        response = requests.post(f'{self.base_url}/users/create', json=creator_data)
+        response = requests.post(f'{self.base_url}/users/create', json=joiner_data)
+        #创建组织
+        response = requests.post(f'{self.base_url}/users/login', json=creator_data)
+        self.assertEqual(response.status_code, 200)
+        headers = {
+            "Authorization": f"Bearer {response.json()['access_token']}"
+        }
+        response = requests.post(f'{self.base_url}/organizations/create', json=organization_data, headers=headers)
+        self.assertEqual(response.status_code, 201)
+        org_id = response.json()['c_id']
+        invite_code = response.json()['invite_code']
+        join_info = {
+            'c_id': org_id,
+            'c_name': '', 
+            'c_type': '',
+            'invite_code': invite_code
+        }
+        # 加入组织
+        response = requests.post(f'{self.base_url}/users/login', json=joiner_data)
+        self.assertEqual(response.status_code, 200)
+        headers = {
+            "Authorization": f"Bearer {response.json()['access_token']}"
+        }
+        response = requests.post(f'{self.base_url}/organizations/join', json=join_info, headers=headers)
+        self.assertEqual(response.status_code, 200)
+
+        # 创建者发布任务
+        response = requests.post(f'{self.base_url}/users/login', json=creator_data)
+        self.assertEqual(response.status_code, 200)
+        headers = {
+            "Authorization": f"Bearer {response.json()['access_token']}" 
+        }
+        task_data['c_id'] = org_id
+        task_data['publisher_id'] = response.json()['data']['user_id']
+        response = requests.put(f'{self.base_url}/tasks/publish', json=task_data, headers=headers)
+        self.assertEqual(response.status_code, 201)
+        task_id = response.json()["task_id"]
+
+        # 加入者接受任务
+        response = requests.post(f'{self.base_url}/users/login', json=joiner_data)
+        self.assertEqual(response.status_code, 200)
+        headers = {
+            "Authorization": f"Bearer {response.json()['access_token']}"
+        }
+        response = requests.put(f'{self.base_url}/tasks/accept/{task_id}', headers=headers)
+        self.assertEqual(response.status_code, 200)
+        
+        # 提交任务
+        response = requests.put(f'{self.base_url}/tasks/submit/{task_id}', headers=headers)
+        self.assertEqual(response.status_code, 200)
+        
+        # 重复提交任务
+        response = requests.put(f'{self.base_url}/tasks/submit/{task_id}', headers=headers)
+        self.assertEqual(response.status_code, 400)
+
+        # 发布者登录
+        response = requests.post(f'{self.base_url}/users/login', json=creator_data)
+        self.assertEqual(response.status_code, 200)
+        headers = {
+            "Authorization": f"Bearer {response.json()['access_token']}"
+        }
+        # 确认任务
+        response = requests.put(f'{self.base_url}/tasks/confirm/{task_id}', headers=headers)
+        self.assertEqual(response.status_code, 200)
+        
+        # 重复确认任务
+        response = requests.put(f'{self.base_url}/tasks/confirm/{task_id}', headers=headers)
+        self.assertEqual(response.status_code, 400)
+        
+        
 if __name__ == '__main__':
     unittest.main()

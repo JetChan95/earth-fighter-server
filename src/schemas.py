@@ -7,10 +7,8 @@ class LoginModel(BaseModel):
     password: str
 
 class UserModel(BaseModel):
-    user_id: int
     username: str
     password: str
-    register_time: str
 
 class UserPath(BaseModel):
     u_id: int = Field(..., description = '用户id')
@@ -26,3 +24,21 @@ class OrganizationModel(BaseModel):
 
 class OrgPath(BaseModel):
     c_id: int = Field(..., description = '组织id')
+
+class TaskModel(BaseModel):
+    task_id: int = Field(description = '任务id')
+    task_name: str = Field(description = '任务名称')
+    publisher_id: int = Field(description = '创建者id')
+    receiver_id: int = Field(description = '接收者id')
+    task_state: str = Field(description = '任务状态')
+    publish_time: str = Field(description = '发布时间')
+    time_limit: int = Field(description = '时间限制')
+    completion_time: str = Field(description = '完成时间')
+    c_id: int = Field(description = '组织id')
+    task_desc: str = Field(description = '任务描述')
+
+class TaskPath(BaseModel):
+    task_id: int = Field(..., description = '任务id')
+    
+class TaskStateModel(BaseModel):
+    task_state: str = Field(..., description = '任务状态')

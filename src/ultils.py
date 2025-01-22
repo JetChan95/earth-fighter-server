@@ -38,6 +38,23 @@ def generate_org_data():
 
     return org_data
 
+def generate_task_data():
+    task_name = ''.join(random.choices(string.ascii_letters, k=6))
+    task_desc = ''.join(random.choices(string.ascii_letters, k=6))
+    task_data = {
+        'task_id': 0,
+        'task_name': task_name,
+        'publisher_id': 0,
+        'receiver_id': 0, 
+        'task_state': '',
+        'publish_time': '',
+        'time_limit': 0,
+        'completion_time': '',
+        'c_id': 0,
+        'task_desc': task_desc
+    }
+    return task_data
+
 def generate_invite_code():
     """
     生成随机的6位大小写字母组合的邀请码
