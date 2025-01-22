@@ -422,7 +422,34 @@ class EarthFighterDAO:
         except mysql.connector.Error as err:
             logger.error(f"获取用户信息时发生错误: {err}")
             raise
-        
+            
+    def get_user_organizations(self, u_id):
+        """
+        获取用户所属的组织列表
+        """
+        try:
+            sql = """
+                  SELECT o.c_id, o.c_name, o.c_type, o.invite_code
+                  FROM organizations o JOIN user_org_relations uo
+                  ON o.c_id = uo.c_id
+                  WHERE uo.u_id = %s and o.is_deleted = FALSE
+                  """
+            val = (u_id,)
+            self.cursor.execute(sql, val)
+            results = self.cursor.fetchall()
+            organizations = []
+            for result in results:
+                organizations.append({
+                    "c_id": result[0],
+                    "c_name": result[1],
+                    "c_type": result[2],
+                    "invite_code": result[3]
+                })
+            return organizations
+        except mysql.connector.Error as err:
+            logger.error(f"获取用户组织列表时发生错误: {err}")
+            raise
+
     def close(self):
         try:
             self.cursor.close()

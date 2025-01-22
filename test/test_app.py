@@ -636,6 +636,47 @@ class TestApp(unittest.TestCase):
         self.assertIsNotNone(response.json().get('org_info').get('creator_id'))
         self.assertIsNotNone(response.json().get('org_info').get('invite_code'))
         self.assertIsNotNone(response.json().get('org_info').get('create_time'))
-  
+
+    def test_get_user_organizations(self):
+        # 准备测试数据
+        user_a = generate_user_data()
+        org_a = generate_org_data()
+        org_b = generate_org_data()
+        # 发送POST请求创建用户
+        response = requests.post(f'{self.base_url}/users/create', json=user_a)
+        self.assertEqual(response.status_code, 201)
+        u_id_a = response.json().get('u_id')
+        # 登录用户a
+        response = requests.post(f'{self.base_url}/users/login', json=user_a)
+        self.assertEqual(response.status_code, 200)
+        headers = {
+            "Authorization": f"Bearer {response.json()['access_token']}"
+        }
+        
+        response = requests.get(f'{self.base_url}/users/organizations', headers=headers)
+        self.assertEqual(response.status_code, 404)
+        org_list = response.json().get('org_list')
+        self.assertIsNone(org_list)
+        
+        # 创建组织a
+        response = requests.post(f'{self.base_url}/organizations/create', json=org_a, headers=headers)
+        self.assertEqual(response.status_code, 201)
+
+        # 查询user_a的组织
+        response = requests.get(f'{self.base_url}/users/organizations', headers=headers)
+        self.assertEqual(response.status_code, 200)
+        org_list = response.json().get('org_list')
+        self.assertEqual(len(org_list), 1)
+
+        # 创建组织b
+        response = requests.post(f'{self.base_url}/organizations/create', json=org_b, headers=headers)
+        self.assertEqual(response.status_code, 201)
+        
+        # 再次查询user_a的组织
+        response = requests.get(f'{self.base_url}/users/organizations', headers=headers)
+        self.assertEqual(response.status_code, 200)
+        org_list = response.json().get('org_list')
+        self.assertEqual(len(org_list), 2)
+
 if __name__ == '__main__':
     unittest.main()

@@ -283,6 +283,30 @@ class TestEarthFighterDAO(unittest.TestCase):
         u_id = self.dao.add_user("test_user", "test_password")
         user_info = self.dao.get_user_info_by_name("test_user")
         self.assertIsNotNone(user_info)
+    
+    def test_get_user_organizations(self):
+        u_id = self.dao.add_user("test_user", "test_password")
+        org_list = self.dao.get_user_organizations(u_id)
+        self.assertEqual(len(org_list), 0)
+        
+        org_id1 = self.dao.add_organization("c_name_1", "family", u_id, 'code')
+        org_id2 = self.dao.add_organization("c_name_2", "family", u_id, 'code')
+        self.dao.add_user_to_organization(u_id, org_id1)
+        org_list = self.dao.get_user_organizations(u_id) 
+        self.assertEqual(len(org_list), 1)
+        
+        self.dao.add_user_to_organization(u_id, org_id2)
+        org_list = self.dao.get_user_organizations(u_id)
+        self.assertEqual(len(org_list), 2)
+        self.assertEqual(org_list[0]['c_id'], org_id1)
+        self.assertEqual(org_list[0]['c_name'], 'c_name_1')
+        self.assertEqual(org_list[0]['c_type'], 'family')
+        self.assertEqual(org_list[0]['invite_code'], 'code')
+        self.assertEqual(org_list[1]['c_id'], org_id2)
+        self.assertEqual(org_list[1]['c_name'], 'c_name_2')
+        self.assertEqual(org_list[1]['c_type'], 'family')
+        self.assertEqual(org_list[1]['invite_code'], 'code')
+        
         
 if __name__ == '__main__':
     unittest.main()

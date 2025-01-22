@@ -258,6 +258,28 @@ def get_user_info_by_name(path: UserNameModel):
         logger.error(f"获取用户信息时发生错误: {e}")
         return jsonify({"message": "获取用户信息失败", "error": str(e)}), 500
 
+# 获取玩家组织列表
+@app.get('/users/organizations',
+         tags=[user_tag],
+         summary="获取玩家组织列表",
+         responses={"200": {"description": "玩家组织列表获取成功"}},
+         security=security)
+@jwt_required()
+def get_user_organizations():
+    """
+    获取玩家组织列表
+    """
+    try:
+        user_id = int(get_jwt_identity())
+        organizations = dao.get_user_organizations(user_id)
+        if organizations:
+            return jsonify({"message": "OK", "org_list": organizations}), 200
+        else:
+            return jsonify({"message": "Fail"}), 404
+    except Exception as e:
+        logger.error(f"获取用户组织列表时发生错误: {e}")
+        return jsonify({"message": "error", "error": str(e)}), 500
+
 # 组织管理API
 @app.post('/organizations/create',
          tags=[org_tag],
