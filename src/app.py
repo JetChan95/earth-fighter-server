@@ -64,7 +64,13 @@ def create_user(body: UserModel):
             logger.error("添加用户时角色不存在")
             return jsonify({"message": "添加用户失败"}), 400
         dao.assign_user_role(u_id, role_id)
-        return jsonify({"message": "用户添加成功", "u_id": u_id}), 201
+        response = {
+            "message": "User created successfully",
+            "user_id": u_id,
+            "username": body.username,
+            "role": "user"
+        }
+        return jsonify(response), 201
     except Exception as e:
         logger.error(f"添加用户时发生错误: {e}")
         return jsonify({"message": "添加用户失败", "error": str(e)}), 500
@@ -94,12 +100,14 @@ def user_login(body: LoginModel):
                     "role_name": role_info['role_name']
                 }
                 access_token = create_access_token(identity=f'{user_id}', additional_claims=token_info)
-                data = {
+                response = {
+                    "message": "Login successful",
+                    "access_token": access_token,
                     "user_id": user_id,
                     "username": body.username,
                     "role_name": role_info['role_name']
                 }
-                return jsonify({"message": "Login successful", "access_token": access_token, "data": data},), 200
+                return jsonify(response), 200
             else:
                 return jsonify({"message": "User role not found"}), 401
         else:
@@ -721,4 +729,4 @@ def handle_error(e):
     return jsonify({"message": "服务器内部错误", "error": str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0', port=5000)

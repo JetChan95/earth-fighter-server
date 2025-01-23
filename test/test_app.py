@@ -68,7 +68,7 @@ class TestApp(unittest.TestCase):
             # 登录
             response = requests.post(f'{self.base_url}/users/login', json=user_data)
             self.assertEqual(response.status_code, 200)
-            update_id = response.json().get('data')['user_id']
+            update_id = response.json().get('user_id')
             headers = {
                 "Authorization": f"Bearer {response.json()['access_token']}"
             }
@@ -98,7 +98,7 @@ class TestApp(unittest.TestCase):
             headers = {
                 "Authorization": f"Bearer {response.json()['access_token']}"
             }
-            update_id = response.json()['data']['user_id']
+            update_id = response.json()['user_id']
 
             # 更新别人的账号
             update_id = update_id + 1
@@ -131,7 +131,7 @@ class TestApp(unittest.TestCase):
             headers = {
                 "Authorization": f"Bearer {response.json()['access_token']}"
             }
-            delete_id = response.json()['data']['user_id'] + 1
+            delete_id = response.json()['user_id'] + 1
             response = requests.delete(f'{self.base_url}/users/{delete_id}/delete', headers=headers)
             self.assertEqual(response.status_code, 403)
 
@@ -337,7 +337,7 @@ class TestApp(unittest.TestCase):
                 "Authorization": f"Bearer {response.json()['access_token']}"
             }
             task_data['c_id'] = org_id
-            task_data['publisher_id'] = response.json()['data']['user_id']
+            task_data['publisher_id'] = response.json()['user_id']
             response = requests.put(f'{self.base_url}/tasks/publish', json=task_data, headers=headers)
             self.assertEqual(response.status_code, 200)
 
@@ -348,7 +348,7 @@ class TestApp(unittest.TestCase):
                 "Authorization": f"Bearer {response.json()['access_token']}"
             }
             task_data['c_id'] = org_id
-            task_data['publisher_id'] = response.json()['data']['user_id']
+            task_data['publisher_id'] = response.json()['user_id']
             response = requests.put(f'{self.base_url}/tasks/publish', json=task_data, headers=headers)
             self.assertEqual(response.status_code, 200)
 
@@ -393,7 +393,7 @@ class TestApp(unittest.TestCase):
             "Authorization": f"Bearer {response.json()['access_token']}" 
         }
         task_data['c_id'] = org_id
-        task_data['publisher_id'] = response.json()['data']['user_id']
+        task_data['publisher_id'] = response.json()['user_id']
         response = requests.put(f'{self.base_url}/tasks/publish', json=task_data, headers=headers)
         self.assertEqual(response.status_code, 200)
         task_id = response.json()["task_id"]
@@ -463,7 +463,7 @@ class TestApp(unittest.TestCase):
             "Authorization": f"Bearer {response.json()['access_token']}" 
         }
         task_data['c_id'] = org_id
-        task_data['publisher_id'] = response.json()['data']['user_id']
+        task_data['publisher_id'] = response.json()['user_id']
         response = requests.put(f'{self.base_url}/tasks/publish', json=task_data, headers=headers)
         self.assertEqual(response.status_code, 200)
         task_id = response.json()["task_id"]
@@ -512,7 +512,7 @@ class TestApp(unittest.TestCase):
         headers = {
             "Authorization": f"Bearer {response.json()['access_token']}"
         }
-        u_id = response.json()['data']['user_id']
+        u_id = response.json()['user_id']
         # 创建组织
         response = requests.post(f'{self.base_url}/organizations/create', json=organization_data, headers=headers)
         self.assertEqual(response.status_code, 201)
@@ -559,9 +559,9 @@ class TestApp(unittest.TestCase):
         # 发送POST请求创建用户
         response = requests.post(f'{self.base_url}/users/create', json=user_a)
         print('---ccc---', response.json())
-        u_id_a = response.json().get('u_id')
+        u_id_a = response.json().get('user_id')
         response = requests.post(f'{self.base_url}/users/create', json=user_b)
-        u_id_b = response.json().get('u_id')
+        u_id_b = response.json().get('user_id')
         # 登录用户a
         response = requests.post(f'{self.base_url}/users/login', json=user_a)
         self.assertEqual(response.status_code, 200)
@@ -590,7 +590,7 @@ class TestApp(unittest.TestCase):
         # 发送POST请求创建用户
         response = requests.post(f'{self.base_url}/users/create', json=user_a)
         self.assertEqual(response.status_code, 201)
-        u_id_a = response.json().get('u_id')
+        u_id_a = response.json().get('user_id')
         # 登录用户a
         response = requests.post(f'{self.base_url}/users/login', json=user_a)
         self.assertEqual(response.status_code, 200)
@@ -612,7 +612,7 @@ class TestApp(unittest.TestCase):
         # 发送POST请求创建用户
         response = requests.post(f'{self.base_url}/users/create', json=user_a)
         self.assertEqual(response.status_code, 201)
-        u_id_a = response.json().get('u_id')
+        u_id_a = response.json().get('user_id')
         # 登录用户a
         response = requests.post(f'{self.base_url}/users/login', json=user_a)
         self.assertEqual(response.status_code, 200)
@@ -643,7 +643,7 @@ class TestApp(unittest.TestCase):
         # 发送POST请求创建用户
         response = requests.post(f'{self.base_url}/users/create', json=user_a)
         self.assertEqual(response.status_code, 201)
-        u_id_a = response.json().get('u_id')
+        u_id_a = response.json().get('user_id')
         # 登录用户a
         response = requests.post(f'{self.base_url}/users/login', json=user_a)
         self.assertEqual(response.status_code, 200)
@@ -683,7 +683,7 @@ class TestApp(unittest.TestCase):
         # 发送POST请求创建用户
         response = requests.post(f'{self.base_url}/users/create', json=user_a)
         self.assertEqual(response.status_code, 201)
-        u_id_a = response.json().get('u_id')
+        u_id_a = response.json().get('user_id')
         # 登录用户a
         response = requests.post(f'{self.base_url}/users/login', json=user_a)
         self.assertEqual(response.status_code, 200)
@@ -722,7 +722,7 @@ class TestApp(unittest.TestCase):
         # 发送POST请求创建用户
         response = requests.post(f'{self.base_url}/users/create', json=user_a)
         self.assertEqual(response.status_code, 201)
-        u_id_a = response.json().get('u_id')
+        u_id_a = response.json().get('user_id')
         # 登录用户a
         response = requests.post(f'{self.base_url}/users/login', json=user_a)
         self.assertEqual(response.status_code, 200)
