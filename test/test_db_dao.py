@@ -269,12 +269,12 @@ class TestEarthFighterDAO(unittest.TestCase):
         u_id = self.dao.add_user("test_user", "test_password")   
         user_info = self.dao.get_user_base_info(u_id)
         self.assertIsNotNone(user_info)
-        self.assertEqual(user_info['u_id'], u_id)
+        self.assertEqual(user_info['user_id'], u_id)
         self.assertEqual(user_info['username'], "test_user")
         
         user_all_info = self.dao.get_user_all_info(u_id)
         self.assertIsNotNone(user_all_info)
-        self.assertEqual(user_all_info['u_id'], u_id)
+        self.assertEqual(user_all_info['user_id'], u_id)
         self.assertEqual(user_all_info['username'], "test_user")
         self.assertIsNotNone(user_all_info['register_time'])
 

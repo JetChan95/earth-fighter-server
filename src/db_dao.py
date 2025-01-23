@@ -372,7 +372,7 @@ class EarthFighterDAO:
             result = self.cursor.fetchone()
             if result:
                 return {
-                    "u_id": result[0],
+                    "user_id": result[0],
                     "username": result[1]        
                 }
             else:
@@ -392,7 +392,7 @@ class EarthFighterDAO:
             result = self.cursor.fetchone()
             if result:
                 return {
-                    "u_id": result[0],
+                    "user_id": result[0],
                     "username": result[1],        
                     "register_time": result[3]
                 }
@@ -414,7 +414,7 @@ class EarthFighterDAO:
             logger.debug(f'DB查询用户信息{result}')
             if result:
                 return {
-                    "u_id": result[0],
+                    "user_id": result[0],
                     "username": result[1],       
                 }
             else:

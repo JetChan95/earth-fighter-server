@@ -571,14 +571,14 @@ class TestApp(unittest.TestCase):
         # 获取用户a信息
         response = requests.get(f'{self.base_url}/users/{u_id_a}/info', headers=headers)
         self.assertEqual(response.status_code, 200)
-        self.assertIsNotNone(response.json().get('user_info').get('u_id'))
+        self.assertIsNotNone(response.json().get('user_info').get('user_id'))
         self.assertIsNotNone(response.json().get('user_info').get('username'))
         self.assertIsNone(response.json().get('user_info').get('password'))
         self.assertIsNotNone(response.json().get('user_info').get('register_time'))
         # 获取用户b信息
         response = requests.get(f'{self.base_url}/users/{u_id_b}/info', headers=headers)
         self.assertEqual(response.status_code, 200)
-        self.assertIsNotNone(response.json().get('user_info').get('u_id'))
+        self.assertIsNotNone(response.json().get('user_info').get('user_id'))
         self.assertIsNotNone(response.json().get('user_info').get('username'))
         self.assertIsNone(response.json().get('user_info').get('password'))
         self.assertIsNone(response.json().get('user_info').get('register_time'))
@@ -600,7 +600,7 @@ class TestApp(unittest.TestCase):
         # 获取用户a信息
         response = requests.get(f'{self.base_url}/users/{user_a["username"]}/info', headers=headers)
         self.assertEqual(response.status_code, 200)
-        self.assertIsNotNone(response.json().get('user_info').get('u_id'))
+        self.assertIsNotNone(response.json().get('user_info').get('user_id'))
         self.assertIsNotNone(response.json().get('user_info').get('username'))
         self.assertIsNone(response.json().get('user_info').get('password'))
         self.assertIsNone(response.json().get('user_info').get('register_time'))
