@@ -570,18 +570,19 @@ class TestApp(unittest.TestCase):
         }
         # 获取用户a信息
         response = requests.get(f'{self.base_url}/users/{u_id_a}/info', headers=headers)
+        print(response.json())
         self.assertEqual(response.status_code, 200)
-        self.assertIsNotNone(response.json().get('user_info').get('user_id'))
-        self.assertIsNotNone(response.json().get('user_info').get('username'))
-        self.assertIsNone(response.json().get('user_info').get('password'))
-        self.assertIsNotNone(response.json().get('user_info').get('register_time'))
+        self.assertIsNotNone(response.json().get('user_id'))
+        self.assertIsNotNone(response.json().get('username'))
+        self.assertIsNone(response.json().get('password'))
+        self.assertIsNotNone(response.json().get('register_time'))
         # 获取用户b信息
         response = requests.get(f'{self.base_url}/users/{u_id_b}/info', headers=headers)
         self.assertEqual(response.status_code, 200)
-        self.assertIsNotNone(response.json().get('user_info').get('user_id'))
-        self.assertIsNotNone(response.json().get('user_info').get('username'))
-        self.assertIsNone(response.json().get('user_info').get('password'))
-        self.assertIsNone(response.json().get('user_info').get('register_time'))
+        self.assertIsNotNone(response.json().get('user_id'))
+        self.assertIsNotNone(response.json().get('username'))
+        self.assertIsNone(response.json().get('password'))
+        self.assertIsNone(response.json().get('register_time'))
       
     def test_get_user_info_by_name(self):
         # 准备测试数据
@@ -600,10 +601,10 @@ class TestApp(unittest.TestCase):
         # 获取用户a信息
         response = requests.get(f'{self.base_url}/users/{user_a["username"]}/info', headers=headers)
         self.assertEqual(response.status_code, 200)
-        self.assertIsNotNone(response.json().get('user_info').get('user_id'))
-        self.assertIsNotNone(response.json().get('user_info').get('username'))
-        self.assertIsNone(response.json().get('user_info').get('password'))
-        self.assertIsNone(response.json().get('user_info').get('register_time'))
+        self.assertIsNotNone(response.json().get('user_id'))
+        self.assertIsNotNone(response.json().get('username'))
+        self.assertIsNone(response.json().get('password'))
+        self.assertIsNone(response.json().get('register_time'))
 
     def test_get_organization_info(self):
         # 准备测试数据

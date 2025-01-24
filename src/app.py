@@ -1,5 +1,6 @@
+import datetime
 from flask import Flask, jsonify, request
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity, decode_token
 from flask_openapi3 import OpenAPI, Info, Tag
 from pydantic import BaseModel
 from db_dao import EarthFighterDAO
@@ -28,6 +29,7 @@ security = [{"jwt": []}]
 
 app = OpenAPI(__name__, info=info, security_schemes=security_schemes)
 jwt = JWTManager(app)
+app.config['JWT_SECRET_KEY'] = 'oa;shdpoignqopweh'
 app.config['JWT_SECRET_KEY'] = 'oa;shdpoignqopweh'
 
 # 定义标签
@@ -100,9 +102,15 @@ def user_login(body: LoginModel):
                     "role_name": role_info['role_name']
                 }
                 access_token = create_access_token(identity=f'{user_id}', additional_claims=token_info)
+                logger.debug(f"JWT Token: {decode_token(access_token)}")
+                exp = decode_token(access_token).get('exp')
+                dt_object = datetime.datetime.fromtimestamp(exp)
+                formatted_time = dt_object.strftime('%Y-%m-%d %H:%M:%S')
+                logger.debug(f"exp: {formatted_time}")
                 response = {
                     "message": "Login successful",
                     "access_token": access_token,
+                    "expiration": exp,
                     "user_id": user_id,
                     "username": body.username,
                     "role_name": role_info['role_name']
@@ -235,12 +243,12 @@ def get_user_info(path: UserPath):
         logger.debug(user_info)
         
         if user_info:
-            return jsonify({"message": "User info get successfully", "user_info": user_info}), 200
+            return jsonify(user_info), 200
         else:
             return jsonify({"message": "User info get fail"}), 404
     except Exception as e:
         logger.error(f"获取用户信息时发生错误: {e}")
-        return jsonify({"message": "获取用户信息失败", "error": str(e)}), 500
+        return jsonify({"message": "failed to get user info", "error": str(e)}), 500
 
 # 根据用户名查询用户信息
 @app.get('/users/<string:username>/info',
@@ -259,7 +267,7 @@ def get_user_info_by_name(path: UserNameModel):
         user_info = dao.get_user_info_by_name(username)
         logger.debug(user_info)
         if user_info:
-            return jsonify({"message": "User info get successfully", "user_info": user_info}), 200
+            return jsonify(user_info), 200
         else:
             return jsonify({"message": "User info get fail"}), 404
     except Exception as e:
