@@ -163,7 +163,7 @@ class TestApp(unittest.TestCase):
             # 获取组织
             response = requests.get(f'{self.base_url}/users/organizations', json=organization_data, headers=headers)
             self.assertEqual(response.status_code, 200)
-            org_list = response.json().get('org_list')
+            org_list = response.json().get('data')
             org_id_list = [org.get('c_id') for org in org_list]
             self.assertIn(org_id, org_id_list)
             
@@ -654,7 +654,7 @@ class TestApp(unittest.TestCase):
         
         response = requests.get(f'{self.base_url}/users/organizations', headers=headers)
         self.assertEqual(response.status_code, 404)
-        org_list = response.json().get('org_list')
+        org_list = response.json().get('data')
         self.assertIsNone(org_list)
         
         # 创建组织a
@@ -664,7 +664,7 @@ class TestApp(unittest.TestCase):
         # 查询user_a的组织
         response = requests.get(f'{self.base_url}/users/organizations', headers=headers)
         self.assertEqual(response.status_code, 200)
-        org_list = response.json().get('org_list')
+        org_list = response.json().get('data')
         self.assertEqual(len(org_list), 1)
 
         # 创建组织b
@@ -674,7 +674,7 @@ class TestApp(unittest.TestCase):
         # 再次查询user_a的组织
         response = requests.get(f'{self.base_url}/users/organizations', headers=headers)
         self.assertEqual(response.status_code, 200)
-        org_list = response.json().get('org_list')
+        org_list = response.json().get('data')
         self.assertEqual(len(org_list), 2)
 
     def test_get_organization_tasks(self):

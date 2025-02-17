@@ -30,7 +30,7 @@ security = [{"jwt": []}]
 app = OpenAPI(__name__, info=info, security_schemes=security_schemes)
 jwt = JWTManager(app)
 app.config['JWT_SECRET_KEY'] = 'oa;shdpoignqopweh'
-app.config['JWT_SECRET_KEY'] = 'oa;shdpoignqopweh'
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = datetime.timedelta(days=7)
 
 # 定义标签
 auth_tag = Tag(name="用户认证", description="用户认证相关操作")
@@ -289,7 +289,7 @@ def get_user_organizations():
         user_id = int(get_jwt_identity())
         organizations = dao.get_user_organizations(user_id)
         if organizations:
-            return jsonify({"message": "OK", "org_list": organizations}), 200
+            return jsonify({"message": "OK", "data": organizations}), 200
         else:
             return jsonify({"message": "Fail"}), 404
     except Exception as e:
@@ -350,7 +350,14 @@ def create_organization(body: OrganizationModel):
         # 自动将创建者加入组织
         dao.add_user_to_organization(creator_id, c_id)
 
-        return jsonify({"message": "Organization created successfully", "c_id": c_id, "invite_code": invite_code}), 201
+        response = {
+            "message": "Organization created successfully",
+            "c_id": c_id,
+            "c_name": body.c_name,
+            "c_type": body.c_type,
+            "invite_code": invite_code 
+        }
+        return jsonify(response), 201
     except Exception as e:
         logger.error(f"添加组织时发生错误: {e}")
         return jsonify({"message": "添加组织失败", "error": str(e)}), 500

@@ -33,7 +33,7 @@
             "type_description": "全球"
         },
         {
-            "type_name": "contry",
+            "type_name": "country",
             "type_description": "国家"
         }
     ]
