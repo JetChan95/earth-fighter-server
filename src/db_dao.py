@@ -300,6 +300,30 @@ class EarthFighterDAO:
             logger.error(f"获取组织信息时发生错误: {err}")
             raise
 
+    def get_organizations(self, number=10):
+        """
+        获取组织列表
+        """
+        try:
+            sql = "SELECT * FROM organizations WHERE is_deleted = FALSE LIMIT %s"
+            val = (number,)
+            self.cursor.execute(sql, val)
+            results = self.cursor.fetchall()
+            organizations = []
+            for result in results:
+                organizations.append({
+                    "c_id": result[0],
+                    "c_name": result[1],
+                    "c_type": result[2],      
+                    "creator_id": result[3],
+                    "invite_code": result[4],
+                    "create_time": result[5]
+                })
+            return organizations
+        except mysql.connector.Error as err:
+            logger.error(f"获取组织列表时发生错误: {err}")
+            raise
+
     def get_organization_id_by_task_id(self, task_id):
         """
         根据任务ID获取组织ID

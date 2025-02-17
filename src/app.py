@@ -362,6 +362,35 @@ def create_organization(body: OrganizationModel):
         logger.error(f"添加组织时发生错误: {e}")
         return jsonify({"message": "添加组织失败", "error": str(e)}), 500
 
+@app.get('/organizations',
+         tags=[org_tag],
+        summary="获取所有组织列表",
+        responses={"200": {"description": "获取成功"}},
+        security=security)
+@jwt_required()
+def get_organization_all():
+    """
+    获取组织列表
+    """
+    try:
+        # 获取当前登录用户的ID
+        current_user_id = get_jwt_identity()
+
+        # 检查是否管理员
+        user_role = dao.get_user_role(current_user_id)
+        if not user_role or user_role['role_name'] != 'admin':
+            logger.error(f"(user:{current_user_id}, role: {user_role['role_name']}) 不是管理员")
+            return jsonify({"message": "Forbid"}), 403
+        # 获取组织列表
+        organizations = dao.get_organizations()
+        if organizations:
+            return jsonify({"message": "OK", "data": organizations}), 200
+        else:
+            return jsonify({"message": "Fail"}), 404
+    except Exception as e:
+        logger.error(f"获取组织列表时发生错误: {e}")
+        return jsonify({"message": "error", "error": str(e)}), 500
+
 @app.delete('/organizations/<int:c_id>/delete',
             tags=[org_tag],
             summary="删除组织",
@@ -423,7 +452,7 @@ def join_organization(path: OrgPath,body: OrganizationModel):
 
         # 加入组织
         dao.add_user_to_organization(user_id, org_id)
-        return jsonify({"message": "成功加入组织", "organization": org_info}), 200
+        return jsonify({"message": "成功加入组织", "data": org_info}), 200
     except Exception as e:
         logger.error(f"user:{user_id}加入组织{org_id}时发生错误: {e}")
         return jsonify({"message": "加入组织失败", "error": str(e)}), 500
