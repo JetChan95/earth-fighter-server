@@ -40,6 +40,9 @@ class TestEarthFighterDAO(unittest.TestCase):
         # self.cursor.execute("DELETE FROM roles")
         self.db.commit()
 
+    def test_clear_database(self):
+        return
+    
     def test_add_user_succ(self):
         u_id = self.dao.add_user("test_user", "test_password")
         self.assertEqual(self.dao.check_user_exists('test_user'), True)

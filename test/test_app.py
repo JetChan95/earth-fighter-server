@@ -705,7 +705,7 @@ class TestApp(unittest.TestCase):
         # 查询成功
         response = requests.get(f'{self.base_url}/organizations/{org_id_a}/tasks', headers=headers)
         self.assertEqual(response.status_code, 200)
-        task_list = response.json().get('tasks')
+        task_list = response.json().get('data')
         self.assertEqual(len(task_list), 1)
 
         # 非法查询，未认证
@@ -744,7 +744,7 @@ class TestApp(unittest.TestCase):
         # 查询成功
         response = requests.get(f'{self.base_url}/users/tasks', headers=headers)
         self.assertEqual(response.status_code, 200)
-        task_list = response.json().get('tasks')
+        task_list = response.json().get('data')
         self.assertEqual(len(task_list), 1)
 
         # 非法查询，未认证

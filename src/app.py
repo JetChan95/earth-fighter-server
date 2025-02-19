@@ -311,7 +311,7 @@ def get_user_tasks():
         user_id = int(get_jwt_identity())
         tasks = dao.get_tasks_by_user(user_id)
         if tasks:
-            return jsonify({"message": "OK", "tasks": tasks}), 200
+            return jsonify({"message": "OK", "data": tasks}), 200
         else:
             return jsonify({"message": "Fail"}), 404
     except Exception as e:
@@ -540,7 +540,7 @@ def get_organization_tasks(path: OrgPath):
         # 获取组织中发布的所有任务
         tasks = dao.get_tasks_by_organization(c_id)
         if tasks:
-            return jsonify({"message": "OK", "tasks": tasks}), 200
+            return jsonify({"message": "OK", "data": tasks}), 200
         else:
             return jsonify({"message": "Fail"}), 404
     except Exception as e:
@@ -573,7 +573,7 @@ def publish_task(body: TaskModel):
         config = cfg.get_config()
         task_status = config['task_status']['pending']
 
-        task_id = dao.publish_task(body.task_name, body.publisher_id, receiver_id, task_status, body.time_limit, body.c_id, body.task_desc)
+        task_id = dao.publish_task(body.task_name, user_id, receiver_id, task_status, body.time_limit, body.c_id, body.task_desc)
         return jsonify({"message": "Task published successfully", "task_id": task_id}), 200
     except Exception as e:
         logger.error(f"发布任务时发生错误: {e}")
