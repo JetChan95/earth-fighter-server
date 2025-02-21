@@ -1,6 +1,7 @@
 import mysql.connector
 import json
 from logger import LoggerFactory
+import time
 
 logger = LoggerFactory.getLogger()
 
@@ -9,28 +10,45 @@ class EarthFighterDAO:
         self.config = self.load_db_config()
         self.db = None
         self.cursor = None
-        self.connect()
+        self.connect(retries=3)  # 添加重试机制
+
+    def connect(self, retries=3):
+        """添加连接重试和自动重连功能"""
+        for attempt in range(retries):
+            try:
+                self.db = mysql.connector.connect(
+                    host=self.config['host'],
+                    user=self.config['user'],
+                    password=self.config['password'],
+                    database=self.config['database'],
+                    autocommit=True,  # 自动提交避免事务未提交
+                    pool_name="earth_fighter_pool",
+                    pool_size=5
+                )
+                self.cursor = self.db.cursor()
+                logger.info(f"数据库连接成功（第{attempt+1}次尝试）")
+                return
+            except mysql.connector.Error as err:
+                if attempt < retries - 1:
+                    logger.warning(f"数据库连接失败，第{attempt+1}次重试...")
+                    time.sleep(1)
+                else:
+                    logger.error(f"数据库连接最终失败: {err}")
+                    raise
+
+    def ensure_connection(self):
+        """增强连接保活检查"""
+        try:
+            if not self.db or not self.db.is_connected():
+                logger.warning("数据库连接断开，尝试重新连接...")
+                self.connect()
+        except mysql.connector.Error as err:
+            logger.error(f"数据库连接检查失败: {err}，尝试重新连接...")
+            self.connect()
 
     def load_db_config(self):
         with open('config/db_config.json') as config_file:
             return json.load(config_file)
-
-    def connect(self):
-        try:
-            self.db = mysql.connector.connect(
-                host=self.config['host'],
-                user=self.config['user'],
-                password=self.config['password'],
-                database=self.config['database']
-            )
-            self.cursor = self.db.cursor()
-        except mysql.connector.Error as err:
-            logger.error(f"Error connecting to MySQL database: {err}")
-            raise
-
-    def ensure_connection(self):
-        if not self.db or not self.db.is_connected():
-            self.connect()
 
     def check_user_exists(self, u_name):
         """
