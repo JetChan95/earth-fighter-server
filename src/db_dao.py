@@ -6,24 +6,37 @@ logger = LoggerFactory.getLogger()
 
 class EarthFighterDAO:
     def __init__(self):
+        self.config = self.load_db_config()
+        self.db = None
+        self.cursor = None
+        self.connect()
+
+    def load_db_config(self):
         with open('config/db_config.json') as config_file:
-            config = json.load(config_file)
+            return json.load(config_file)
+
+    def connect(self):
         try:
             self.db = mysql.connector.connect(
-                host=config['host'],
-                user=config['user'],
-                password=config['password'],
-                database=config['database']
+                host=self.config['host'],
+                user=self.config['user'],
+                password=self.config['password'],
+                database=self.config['database']
             )
             self.cursor = self.db.cursor()
         except mysql.connector.Error as err:
             logger.error(f"Error connecting to MySQL database: {err}")
             raise
 
+    def ensure_connection(self):
+        if not self.db or not self.db.is_connected():
+            self.connect()
+
     def check_user_exists(self, u_name):
         """
         检查用户名是否已存在
         """
+        self.ensure_connection()
         sql_check = "SELECT u_id FROM users WHERE u_name = %s AND is_deleted = FALSE"
         val_check = (u_name,)
         self.cursor.execute(sql_check, val_check)
@@ -31,6 +44,7 @@ class EarthFighterDAO:
         return existing_user is not None
 
     def add_user(self, u_name, password):
+        self.ensure_connection()
         sql_insert = "INSERT INTO users (u_name, password, register_time) VALUES (%s, %s, NOW())"
         val_insert = (u_name, password)
         try:
@@ -42,6 +56,7 @@ class EarthFighterDAO:
             self.db.rollback()
             raise
     def delete_user(self, u_id):
+        self.ensure_connection()
         sql = "UPDATE users SET is_deleted = TRUE WHERE u_id = %s"
         val = (u_id,)
         try:
@@ -54,6 +69,7 @@ class EarthFighterDAO:
             raise
 
     def update_user(self, u_id, u_name):
+        self.ensure_connection()
         sql = "UPDATE users SET u_name = %s WHERE u_id = %s"
         val = (u_name, u_id)
         try:
@@ -66,6 +82,7 @@ class EarthFighterDAO:
             raise
 
     def update_user_password(self, u_id, password):
+        self.ensure_connection()
         sql = "UPDATE users SET password = %s WHERE u_id = %s"
         val = (password, u_id)
         try:
@@ -81,6 +98,7 @@ class EarthFighterDAO:
         """
         根据角色名称获取角色ID
         """
+        self.ensure_connection()
         sql = "SELECT role_id FROM roles WHERE role_name = %s"
         val = (role_name,)
         try:
@@ -94,6 +112,7 @@ class EarthFighterDAO:
         """
         更新用户的角色信息
         """
+        self.ensure_connection()
         sql = "UPDATE user_role SET role_id = %s WHERE user_id = %s"
         val = (role_id, u_id)
         try:
@@ -108,6 +127,7 @@ class EarthFighterDAO:
         """
         为用户分配角色
         """
+        self.ensure_connection()
         sql = "INSERT INTO user_role (user_id, role_id) VALUES (%s, %s)"
         val = (u_id, role_id)
         try:
@@ -119,6 +139,7 @@ class EarthFighterDAO:
             self.db.rollback()
             raise
     def user_login(self, u_name, password):
+        self.ensure_connection()
         sql = "SELECT * FROM users WHERE u_name = %s AND password = %s AND is_deleted = FALSE"
         val = (u_name, password)
         try:
@@ -132,6 +153,7 @@ class EarthFighterDAO:
         """
         获取用户的角色信息
         """
+        self.ensure_connection()
         sql = "SELECT roles.role_id, roles.role_name FROM roles JOIN user_role ON roles.role_id = user_role.role_id WHERE user_role.user_id = %s"
         val = (u_id,)
         self.cursor.execute(sql, val)
@@ -142,6 +164,7 @@ class EarthFighterDAO:
         """
         检查组织是否已存在
         """
+        self.ensure_connection()
         sql_check = "SELECT c_id FROM organizations WHERE c_name = %s AND is_deleted = FALSE"
         val_check = (c_name,)
         self.cursor.execute(sql_check, val_check)
@@ -149,6 +172,7 @@ class EarthFighterDAO:
         return existing_org is not None
 
     def add_organization(self, c_name, c_type, creator_id, invite_code):
+        self.ensure_connection()
         sql = "INSERT INTO organizations (c_name, c_type, creator_id, invite_code, is_deleted) VALUES (%s, %s, %s, %s, FALSE)"
         val = (c_name, c_type, creator_id, invite_code)
         try:
@@ -161,6 +185,7 @@ class EarthFighterDAO:
             raise
 
     def delete_organization(self, c_id):
+        self.ensure_connection()
         sql = "UPDATE organizations SET is_deleted = TRUE WHERE c_id = %s"
         val = (c_id,)
         try:
@@ -175,6 +200,7 @@ class EarthFighterDAO:
         """
         将用户添加到组织
         """
+        self.ensure_connection()
         sql = "INSERT INTO user_org_relations (u_id, c_id) VALUES (%s, %s)"
         val = (user_id, organization_id)
         try:
@@ -189,6 +215,7 @@ class EarthFighterDAO:
         """
         从组织中移除用户
         """
+        self.ensure_connection()
         sql = "DELETE FROM user_org_relations WHERE u_id = %s AND c_id = %s"
         val = (user_id, organization_id)
         try:
@@ -200,6 +227,7 @@ class EarthFighterDAO:
             raise
         
     def publish_task(self, task_name, publisher_id, receiver_id, task_state, time_limit, c_id, task_desc):
+        self.ensure_connection()
         sql = """
                 INSERT INTO tasks (task_name, publisher_id, receiver_id, task_state, publish_time, time_limit, c_id, task_desc) 
                  VALUES (%s, %s, %s, %s, NOW(), %s, %s, %s)
@@ -217,6 +245,7 @@ class EarthFighterDAO:
         """
         获取任务状态
         """
+        self.ensure_connection()
         try:
             sql = "SELECT task_state FROM tasks WHERE task_id = %s"
             val = (task_id,)
@@ -233,6 +262,7 @@ class EarthFighterDAO:
         """
         更新任务状态
         """
+        self.ensure_connection()
         try:
             sql = "UPDATE tasks SET task_state = %s WHERE task_id = %s"
             val = (task_status, task_id)
@@ -247,6 +277,7 @@ class EarthFighterDAO:
         """
         更新任务状态和接收者
         """
+        self.ensure_connection()
         try:
             sql = "UPDATE tasks SET task_state = %s, receiver_id = %s WHERE task_id = %s"
             val = (task_status, receiver_id, task_id)
@@ -261,6 +292,7 @@ class EarthFighterDAO:
         """
         检查用户是否为组织的创建者
         """
+        self.ensure_connection()
         sql = "SELECT COUNT(*) FROM organizations WHERE c_id = %s AND creator_id = %s"
         val = (organization_id, user_id)
         self.cursor.execute(sql, val)
@@ -270,6 +302,7 @@ class EarthFighterDAO:
         """
         检查用户是否为组织成员
         """
+        self.ensure_connection()
         sql = "SELECT COUNT(*) FROM user_org_relations WHERE u_id = %s AND c_id = %s"
         val = (user_id, organization_id)
         self.cursor.execute(sql, val)
@@ -280,6 +313,7 @@ class EarthFighterDAO:
         """
         获取组织信息
         """
+        self.ensure_connection()
         try:
             sql = "SELECT * FROM organizations WHERE c_id = %s and is_deleted = FALSE"
             val = (c_id,)
@@ -304,6 +338,7 @@ class EarthFighterDAO:
         """
         获取组织列表
         """
+        self.ensure_connection()
         try:
             sql = "SELECT * FROM organizations WHERE is_deleted = FALSE LIMIT %s"
             val = (number,)
@@ -328,6 +363,7 @@ class EarthFighterDAO:
         """
         根据任务ID获取组织ID
         """
+        self.ensure_connection()
         try:
             sql = "SELECT c_id FROM tasks WHERE task_id = %s"
             val = (task_id,)
@@ -345,6 +381,7 @@ class EarthFighterDAO:
         """
         根据任务ID获取任务信息
         """
+        self.ensure_connection()
         try:
             sql = "SELECT * FROM tasks WHERE task_id = %s"
             val = (task_id,)
@@ -374,6 +411,7 @@ class EarthFighterDAO:
         """
         删除任务
         """
+        self.ensure_connection()
         try:
             sql = "DELETE FROM tasks WHERE task_id = %s"
             val = (task_id,)
@@ -389,6 +427,7 @@ class EarthFighterDAO:
         """
         获取用户基本信息
         """
+        self.ensure_connection()
         try:
             sql = "SELECT u_id, u_name FROM users WHERE u_id = %s and is_deleted = FALSE"
             val = (user_id,)
@@ -409,6 +448,7 @@ class EarthFighterDAO:
         """
         获取用户所有信息
         """
+        self.ensure_connection()
         try:
             sql = "SELECT * FROM users WHERE u_id = %s and is_deleted = FALSE"
             val = (user_id,)
@@ -430,6 +470,7 @@ class EarthFighterDAO:
         """
         根据用户名获取用户信息
         """
+        self.ensure_connection()
         try:
             sql = "SELECT * FROM users WHERE u_name = %s and is_deleted = FALSE"
             val = (user_name,)
@@ -451,6 +492,7 @@ class EarthFighterDAO:
         """
         获取用户所属的组织列表
         """
+        self.ensure_connection()
         try:
             sql = """
                   SELECT o.c_id, o.c_name, o.c_type, o.invite_code
@@ -478,6 +520,7 @@ class EarthFighterDAO:
         """
         根据组织ID获取任务列表
         """
+        self.ensure_connection()
         try:
             sql = "SELECT * FROM tasks WHERE c_id = %s AND is_deleted = FALSE"
             val = (c_id,)
@@ -505,6 +548,7 @@ class EarthFighterDAO:
         """
         根据组织ID获取任务列表
         """
+        self.ensure_connection()
         try:
             sql = "SELECT * FROM tasks WHERE (receiver_id = %s OR publisher_id = %s) AND is_deleted = FALSE"
             val = (u_id, u_id)
